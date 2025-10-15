@@ -147,3 +147,9 @@ dmypy.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Google Cloud credentials
+*.json
+*-service-account-key.json
+*service-account*.json
+construction-management-475118-70b0d7c346df.json
