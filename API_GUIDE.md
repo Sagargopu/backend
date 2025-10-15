@@ -355,6 +355,414 @@ In production, implement JWT tokens or OAuth2.
 **Status Values**: `Active`, `Completed`, `Terminated`
 **Performance Rating**: Scale of 1.0 to 5.0
 
+#### WorkerWithProfession Entity (Extended View)
+```json
+{
+  "id": 1,
+  "worker_id": "ELC001",
+  "first_name": "John",
+  "last_name": "Smith",
+  "phone_number": "+1-555-0101",
+  "email": "john.smith@buildbuzz.com",
+  "address": "123 Main St, Detroit, MI 48201",
+  "profession_id": 1,
+  "skill_rating": 8.5,
+  "wage_rate": 35.50,
+  "current_project_id": 1,
+  "current_project_start_date": "2024-10-01",
+  "current_project_end_date": "2024-12-15",
+  "availability": "Assigned",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z",
+  "profession": {
+    "id": 1,
+    "name": "Electrician",
+    "description": "Licensed electrician for commercial and residential projects",
+    "category": "Electrical",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+#### WorkerDetailedView Entity (Complete View with History)
+```json
+{
+  "id": 1,
+  "worker_id": "ELC001",
+  "first_name": "John",
+  "last_name": "Smith",
+  "phone_number": "+1-555-0101",
+  "email": "john.smith@buildbuzz.com",
+  "address": "123 Main St, Detroit, MI 48201",
+  "profession_id": 1,
+  "skill_rating": 8.5,
+  "wage_rate": 35.50,
+  "current_project_id": 1,
+  "current_project_start_date": "2024-10-01",
+  "current_project_end_date": "2024-12-15",
+  "availability": "Assigned",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z",
+  "profession": {
+    "id": 1,
+    "name": "Electrician",
+    "description": "Licensed electrician for commercial and residential projects",
+    "category": "Electrical",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  },
+  "project_history": [
+    {
+      "id": 1,
+      "worker_id": 1,
+      "project_id": 1,
+      "start_date": "2024-01-15",
+      "end_date": "2024-03-30",
+      "role": "Lead Electrician",
+      "status": "Completed",
+      "performance_rating": 4.5,
+      "notes": "Excellent work on main electrical installation. Met all deadlines.",
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-03-30T10:30:00Z"
+    },
+    {
+      "id": 2,
+      "worker_id": 1,
+      "project_id": 2,
+      "start_date": "2024-04-01",
+      "end_date": "2024-06-15",
+      "role": "Senior Electrician",
+      "status": "Completed",
+      "performance_rating": 4.2,
+      "notes": "Good performance, minor delays due to material shortage.",
+      "created_at": "2024-04-01T10:30:00Z",
+      "updated_at": "2024-06-15T10:30:00Z"
+    },
+    {
+      "id": 3,
+      "worker_id": 1,
+      "project_id": 1,
+      "start_date": "2024-10-01",
+      "end_date": null,
+      "role": "Lead Electrician",
+      "status": "Active",
+      "performance_rating": null,
+      "notes": "Currently working on new office building electrical systems.",
+      "created_at": "2024-10-01T10:30:00Z",
+      "updated_at": "2024-10-01T10:30:00Z"
+    }
+  ]
+}
+```
+
+### Workforce Sample Data Collections
+
+#### Sample Professions Array
+```json
+[
+  {
+    "id": 1,
+    "name": "Electrician",
+    "description": "Licensed electrician for commercial and residential projects",
+    "category": "Electrical",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  },
+  {
+    "id": 2,
+    "name": "Plumber",
+    "description": "Licensed plumber for water and sewer systems",
+    "category": "Plumbing",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  },
+  {
+    "id": 3,
+    "name": "Carpenter",
+    "description": "Skilled carpenter for framing and finishing work",
+    "category": "Structural",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  },
+  {
+    "id": 4,
+    "name": "Mason",
+    "description": "Stone and brick mason for foundation and wall work",
+    "category": "Structural",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  },
+  {
+    "id": 5,
+    "name": "HVAC Technician",
+    "description": "Heating, ventilation, and air conditioning specialist",
+    "category": "HVAC",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+]
+```
+
+#### Sample Workers Array (with Professions)
+```json
+[
+  {
+    "id": 1,
+    "worker_id": "ELC001",
+    "first_name": "John",
+    "last_name": "Smith",
+    "phone_number": "+1-555-0101",
+    "email": "john.smith@buildbuzz.com",
+    "address": "123 Main St, Detroit, MI 48201",
+    "profession_id": 1,
+    "skill_rating": 8.5,
+    "wage_rate": 35.50,
+    "current_project_id": null,
+    "current_project_start_date": null,
+    "current_project_end_date": null,
+    "availability": "Available",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "profession": {
+      "id": 1,
+      "name": "Electrician",
+      "description": "Licensed electrician for commercial and residential projects",
+      "category": "Electrical"
+    }
+  },
+  {
+    "id": 2,
+    "worker_id": "ELC002",
+    "first_name": "Sarah",
+    "last_name": "Johnson",
+    "phone_number": "+1-555-0102",
+    "email": "sarah.johnson@buildbuzz.com",
+    "address": "456 Oak Ave, Detroit, MI 48202",
+    "profession_id": 1,
+    "skill_rating": 9.2,
+    "wage_rate": 42.00,
+    "current_project_id": 1,
+    "current_project_start_date": "2024-10-01",
+    "current_project_end_date": "2024-12-15",
+    "availability": "Assigned",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-10-01T10:30:00Z",
+    "profession": {
+      "id": 1,
+      "name": "Electrician",
+      "description": "Licensed electrician for commercial and residential projects",
+      "category": "Electrical"
+    }
+  },
+  {
+    "id": 3,
+    "worker_id": "PLB001",
+    "first_name": "Michael",
+    "last_name": "Rodriguez",
+    "phone_number": "+1-555-0103",
+    "email": "michael.rodriguez@buildbuzz.com",
+    "address": "789 Pine St, Detroit, MI 48203",
+    "profession_id": 2,
+    "skill_rating": 7.8,
+    "wage_rate": 38.25,
+    "current_project_id": null,
+    "current_project_start_date": null,
+    "current_project_end_date": null,
+    "availability": "Available",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "profession": {
+      "id": 2,
+      "name": "Plumber",
+      "description": "Licensed plumber for water and sewer systems",
+      "category": "Plumbing"
+    }
+  },
+  {
+    "id": 4,
+    "worker_id": "CAR001",
+    "first_name": "David",
+    "last_name": "Wilson",
+    "phone_number": "+1-555-0104",
+    "email": "david.wilson@buildbuzz.com",
+    "address": "321 Elm St, Detroit, MI 48204",
+    "profession_id": 3,
+    "skill_rating": 9.0,
+    "wage_rate": 33.75,
+    "current_project_id": 2,
+    "current_project_start_date": "2024-09-15",
+    "current_project_end_date": "2024-11-30",
+    "availability": "Assigned",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-09-15T10:30:00Z",
+    "profession": {
+      "id": 3,
+      "name": "Carpenter",
+      "description": "Skilled carpenter for framing and finishing work",
+      "category": "Structural"
+    }
+  },
+  {
+    "id": 5,
+    "worker_id": "MAS001",
+    "first_name": "Robert",
+    "last_name": "Garcia",
+    "phone_number": "+1-555-0105",
+    "email": "robert.garcia@buildbuzz.com",
+    "address": "654 Maple Dr, Detroit, MI 48205",
+    "profession_id": 4,
+    "skill_rating": 8.0,
+    "wage_rate": 36.00,
+    "current_project_id": null,
+    "current_project_start_date": null,
+    "current_project_end_date": null,
+    "availability": "On Leave",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-09-01T10:30:00Z",
+    "profession": {
+      "id": 4,
+      "name": "Mason",
+      "description": "Stone and brick mason for foundation and wall work",
+      "category": "Structural"
+    }
+  },
+  {
+    "id": 6,
+    "worker_id": "HVC001",
+    "first_name": "Lisa",
+    "last_name": "Chen",
+    "phone_number": "+1-555-0106",
+    "email": "lisa.chen@buildbuzz.com",
+    "address": "987 Cedar Ln, Detroit, MI 48206",
+    "profession_id": 5,
+    "skill_rating": 8.8,
+    "wage_rate": 40.50,
+    "current_project_id": null,
+    "current_project_start_date": null,
+    "current_project_end_date": null,
+    "availability": "Available",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "profession": {
+      "id": 5,
+      "name": "HVAC Technician",
+      "description": "Heating, ventilation, and air conditioning specialist",
+      "category": "HVAC"
+    }
+  }
+]
+```
+
+#### Sample Project History Array
+```json
+[
+  {
+    "id": 1,
+    "worker_id": 1,
+    "project_id": 1,
+    "start_date": "2024-01-15",
+    "end_date": "2024-03-30",
+    "role": "Lead Electrician",
+    "status": "Completed",
+    "performance_rating": 4.5,
+    "notes": "Excellent work on main electrical installation. Met all deadlines.",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-03-30T10:30:00Z"
+  },
+  {
+    "id": 2,
+    "worker_id": 1,
+    "project_id": 2,
+    "start_date": "2024-04-01",
+    "end_date": "2024-06-15",
+    "role": "Senior Electrician",
+    "status": "Completed",
+    "performance_rating": 4.2,
+    "notes": "Good performance, minor delays due to material shortage.",
+    "created_at": "2024-04-01T10:30:00Z",
+    "updated_at": "2024-06-15T10:30:00Z"
+  },
+  {
+    "id": 3,
+    "worker_id": 2,
+    "project_id": 1,
+    "start_date": "2024-10-01",
+    "end_date": null,
+    "role": "Lead Electrician",
+    "status": "Active",
+    "performance_rating": null,
+    "notes": "Currently working on new office building electrical systems.",
+    "created_at": "2024-10-01T10:30:00Z",
+    "updated_at": "2024-10-01T10:30:00Z"
+  },
+  {
+    "id": 4,
+    "worker_id": 3,
+    "project_id": 1,
+    "start_date": "2024-02-01",
+    "end_date": "2024-04-10",
+    "role": "Senior Plumber",
+    "status": "Completed",
+    "performance_rating": 4.0,
+    "notes": "Solid performance on plumbing installation.",
+    "created_at": "2024-02-01T10:30:00Z",
+    "updated_at": "2024-04-10T10:30:00Z"
+  },
+  {
+    "id": 5,
+    "worker_id": 4,
+    "project_id": 2,
+    "start_date": "2024-09-15",
+    "end_date": null,
+    "role": "Lead Carpenter",
+    "status": "Active",
+    "performance_rating": null,
+    "notes": "Working on custom millwork for luxury residential project.",
+    "created_at": "2024-09-15T10:30:00Z",
+    "updated_at": "2024-09-15T10:30:00Z"
+  },
+  {
+    "id": 6,
+    "worker_id": 5,
+    "project_id": 3,
+    "start_date": "2024-03-01",
+    "end_date": "2024-05-20",
+    "role": "Master Mason",
+    "status": "Completed",
+    "performance_rating": 4.8,
+    "notes": "Outstanding stonework on building facade. Ahead of schedule.",
+    "created_at": "2024-03-01T10:30:00Z",
+    "updated_at": "2024-05-20T10:30:00Z"
+  }
+]
+```
+
+### Workforce Statistics Sample Response
+```json
+{
+  "total_workers": 6,
+  "available_workers": 3,
+  "assigned_workers": 2,
+  "on_leave_workers": 1,
+  "unavailable_workers": 0,
+  "workers_by_profession": {
+    "Electrician": 2,
+    "Plumber": 1,
+    "Carpenter": 1,
+    "Mason": 1,
+    "HVAC Technician": 1
+  },
+  "average_skill_rating": 8.55,
+  "average_wage_rate": 37.50,
+  "highest_skill_rating": 9.2,
+  "lowest_skill_rating": 7.8,
+  "active_assignments": 2,
+  "completed_assignments": 4,
+  "total_project_assignments": 6
+}
+```
+
 ---
 
 ## API Endpoints by Module
