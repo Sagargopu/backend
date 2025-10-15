@@ -15,7 +15,7 @@ class Vendor(VendorBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Schemas for Purchase Order
 class PurchaseOrderBase(BaseModel):
@@ -33,7 +33,7 @@ class PurchaseOrder(PurchaseOrderBase):
     created_by_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Schemas for Change Order
 class ChangeOrderBase(BaseModel):
@@ -50,7 +50,7 @@ class ChangeOrder(ChangeOrderBase):
     created_by_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Schemas for Contract
 class ContractBase(BaseModel):
@@ -66,7 +66,7 @@ class Contract(ContractBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Schemas for ClientInvoice
 class ClientInvoiceBase(BaseModel):
@@ -82,7 +82,7 @@ class ClientInvoice(ClientInvoiceBase):
     status: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Schemas for VendorInvoice
 class VendorInvoiceBase(BaseModel):
@@ -99,7 +99,7 @@ class VendorInvoice(VendorInvoiceBase):
     status: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 
