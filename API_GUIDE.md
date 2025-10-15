@@ -13,19 +13,21 @@
 
 ## Overview
 
-BuildBuzz is a simplified construction management system API that provides core functionality for managing users, projects, documents, and financial operations. The API follows RESTful principles and uses JSON for data exchange.
+BuildBuzz is a comprehensive construction management system API that provides functionality for managing users, projects, documents, finance, and workforce operations. The API follows RESTful principles and uses JSON for data exchange.
 
 ### System Architecture
 ```
 Users → Projects → Components → Tasks
       → Documents
       → Finance (Transactions, Purchase Orders, etc.)
+      → Workforce (Workers, Professions, Project History)
 ```
 
-### Recent Updates (v2.0 - Simplified)
-- ✅ **Removed**: Payroll and worker management features
-- ✅ **Simplified**: User management to basic roles only
-- ✅ **Focus**: Core project management workflow
+### Recent Updates (v3.0 - With Workforce Management)
+- ✅ **Added**: Complete workforce management system
+- ✅ **Enhanced**: Worker details, wages, and project tracking
+- ✅ **Integrated**: Profession management and skill ratings
+- ✅ **Focus**: Complete construction project lifecycle
 
 ---
 
@@ -292,6 +294,67 @@ In production, implement JWT tokens or OAuth2.
 }
 ```
 
+### Workforce Management Models
+
+#### Profession Entity
+```json
+{
+  "id": 1,
+  "name": "Electrician",
+  "description": "Licensed electrician for commercial and residential projects",
+  "category": "Electrical",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Categories**: `Electrical`, `Plumbing`, `Structural`, `Finishing`, `HVAC`, `Masonry`
+
+#### Worker Entity
+```json
+{
+  "id": 1,
+  "worker_id": "ELC001",
+  "first_name": "John",
+  "last_name": "Smith",
+  "phone_number": "+1-555-0101",
+  "email": "john.smith@buildbuzz.com",
+  "address": "123 Main St, Detroit, MI 48201",
+  "profession_id": 1,
+  "skill_rating": 8.5,
+  "wage_rate": 35.50,
+  "current_project_id": 1,
+  "current_project_start_date": "2024-10-01",
+  "current_project_end_date": "2024-12-15",
+  "availability": "Assigned",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Availability Values**: `Available`, `Assigned`, `Unavailable`, `On Leave`
+**Skill Rating**: Scale of 1.0 to 10.0
+
+#### WorkerProjectHistory Entity
+```json
+{
+  "id": 1,
+  "worker_id": 1,
+  "project_id": 1,
+  "start_date": "2024-01-15",
+  "end_date": "2024-03-30",
+  "role": "Lead Electrician",
+  "status": "Completed",
+  "performance_rating": 4.5,
+  "notes": "Excellent work on main electrical installation. Met all deadlines.",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-03-30T10:30:00Z"
+}
+```
+
+**Status Values**: `Active`, `Completed`, `Terminated`
+**Performance Rating**: Scale of 1.0 to 5.0
+
 ---
 
 ## API Endpoints by Module
@@ -361,6 +424,32 @@ In production, implement JWT tokens or OAuth2.
 | `GET` | `/documents/{document_id}/download` | Download document file | File |
 | `POST` | `/documents/{document_id}/grant-access` | Grant document access | `DocumentAccess` |
 | `GET` | `/documents/projects/{project_id}` | Get project documents | `List[Document]` |
+
+### Workforce Management Module (`/workforce`)
+
+| Method | Endpoint | Description | Response Model |
+|--------|----------|-------------|----------------|
+| `POST` | `/workforce/professions/` | Create profession | `Profession` |
+| `GET` | `/workforce/professions/` | Get all professions | `List[Profession]` |
+| `GET` | `/workforce/professions/{profession_id}` | Get specific profession | `Profession` |
+| `PUT` | `/workforce/professions/{profession_id}` | Update profession | `Profession` |
+| `DELETE` | `/workforce/professions/{profession_id}` | Delete profession | `dict` |
+| `POST` | `/workforce/workers/` | Create worker | `Worker` |
+| `GET` | `/workforce/workers/` | Get all workers (with filters) | `List[WorkerWithProfession]` |
+| `GET` | `/workforce/workers/available` | Get available workers | `List[WorkerWithProfession]` |
+| `GET` | `/workforce/workers/by-project/{project_id}` | Get workers by project | `List[WorkerWithProfession]` |
+| `GET` | `/workforce/workers/{worker_id}` | Get worker details | `WorkerDetailedView` |
+| `PUT` | `/workforce/workers/{worker_id}` | Update worker | `Worker` |
+| `DELETE` | `/workforce/workers/{worker_id}` | Delete worker | `dict` |
+| `POST` | `/workforce/workers/{worker_id}/assign-project` | Assign worker to project | `dict` |
+| `POST` | `/workforce/workers/{worker_id}/unassign-project` | Remove worker from project | `dict` |
+| `POST` | `/workforce/project-history/` | Create project history | `WorkerProjectHistory` |
+| `GET` | `/workforce/project-history/worker/{worker_id}` | Get worker's project history | `List[WorkerProjectHistory]` |
+| `GET` | `/workforce/project-history/project/{project_id}` | Get project's worker history | `List[WorkerProjectHistory]` |
+| `GET` | `/workforce/project-history/active` | Get active assignments | `List[WorkerProjectHistory]` |
+| `PUT` | `/workforce/project-history/{history_id}` | Update project history | `WorkerProjectHistory` |
+| `POST` | `/workforce/project-history/{history_id}/complete` | Complete project assignment | `dict` |
+| `DELETE` | `/workforce/project-history/{history_id}` | Delete project history | `dict` |
 
 ---
 
@@ -554,9 +643,243 @@ curl -X POST "http://localhost:8000/users/clerk/invite-user/?clerk_id=1" \
 
 ---
 
+### 5. Workforce Management Endpoints
+
+#### POST `/workforce/professions/`
+**Purpose**: Create a new construction profession/trade
+
+**Request Body**:
+```json
+{
+  "name": "Electrician",
+  "description": "Licensed electrician for commercial and residential projects",
+  "category": "Electrical"
+}
+```
+
+**Response**: Complete `Profession` object with generated ID and timestamps
+
+#### GET `/workforce/workers/`
+**Purpose**: Get list of workers with optional filtering
+
+**Query Parameters**:
+- `skip` (int, optional): Pagination offset (default: 0)
+- `limit` (int, optional): Items per page (default: 100)
+- `profession_id` (int, optional): Filter by profession ID
+- `availability` (string, optional): Filter by availability status
+- `min_skill_rating` (float, optional): Minimum skill rating filter
+- `max_skill_rating` (float, optional): Maximum skill rating filter (default: 10.0)
+
+**Response**: Array of `WorkerWithProfession` objects
+
+#### POST `/workforce/workers/`
+**Purpose**: Create a new worker
+
+**Request Body**:
+```json
+{
+  "worker_id": "ELC001",
+  "first_name": "John",
+  "last_name": "Smith",
+  "phone_number": "+1-555-0101",
+  "email": "john.smith@buildbuzz.com",
+  "address": "123 Main St, Detroit, MI 48201",
+  "profession_id": 1,
+  "skill_rating": 8.5,
+  "wage_rate": 35.50,
+  "availability": "Available"
+}
+```
+
+**Response**: Complete `Worker` object with generated ID
+
+#### GET `/workforce/workers/{worker_id}`
+**Purpose**: Get complete worker details including profession and project history
+
+**Path Parameters**:
+- `worker_id` (int, required): Worker's database ID
+
+**Response**: `WorkerDetailedView` object with profession and project history
+
+#### POST `/workforce/workers/{worker_id}/assign-project`
+**Purpose**: Assign worker to a specific project
+
+**Path Parameters**:
+- `worker_id` (int, required): Worker's database ID
+
+**Query Parameters**:
+- `project_id` (int, required): Project ID to assign worker to
+- `start_date` (date, required): Assignment start date (YYYY-MM-DD)
+- `end_date` (date, optional): Assignment end date (YYYY-MM-DD)
+
+**Response**:
+```json
+{
+  "message": "Worker assigned to project successfully",
+  "worker": { /* Updated worker object */ }
+}
+```
+
+#### POST `/workforce/workers/{worker_id}/unassign-project`
+**Purpose**: Remove worker from their current project assignment
+
+**Path Parameters**:
+- `worker_id` (int, required): Worker's database ID
+
+**Response**:
+```json
+{
+  "message": "Worker unassigned from project successfully",
+  "worker": { /* Updated worker object */ }
+}
+```
+
+#### GET `/workforce/workers/available`
+**Purpose**: Get all workers currently available for assignment
+
+**Response**: Array of `WorkerWithProfession` objects with `availability: "Available"`
+
+#### GET `/workforce/workers/by-project/{project_id}`
+**Purpose**: Get all workers currently assigned to a specific project
+
+**Path Parameters**:
+- `project_id` (int, required): Project ID
+
+**Response**: Array of `WorkerWithProfession` objects assigned to the project
+
+#### POST `/workforce/project-history/`
+**Purpose**: Create a new project history entry for a worker
+
+**Request Body**:
+```json
+{
+  "worker_id": 1,
+  "project_id": 1,
+  "start_date": "2024-01-15",
+  "end_date": "2024-03-30",
+  "role": "Lead Electrician",
+  "status": "Active",
+  "performance_rating": 4.5,
+  "notes": "Currently working on electrical installation"
+}
+```
+
+**Response**: Complete `WorkerProjectHistory` object
+
+#### GET `/workforce/project-history/worker/{worker_id}`
+**Purpose**: Get complete project history for a specific worker
+
+**Path Parameters**:
+- `worker_id` (int, required): Worker's database ID
+
+**Response**: Array of `WorkerProjectHistory` objects
+
+#### POST `/workforce/project-history/{history_id}/complete`
+**Purpose**: Mark a project assignment as completed
+
+**Path Parameters**:
+- `history_id` (int, required): Project history entry ID
+
+**Query Parameters**:
+- `end_date` (date, required): Completion date (YYYY-MM-DD)
+- `performance_rating` (float, optional): Performance rating (1.0 to 5.0)
+- `notes` (string, optional): Completion notes
+
+**Response**:
+```json
+{
+  "message": "Project assignment completed successfully",
+  "history": { /* Updated project history object */ }
+}
+```
+
+---
+
 ## Usage Examples
 
-### Complete Project Workflow
+### Complete Workforce Management Workflow
+
+#### 1. Create Professions
+```bash
+curl -X POST "http://localhost:8000/workforce/professions/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Electrician",
+    "description": "Licensed electrician for commercial and residential projects",
+    "category": "Electrical"
+  }'
+```
+
+#### 2. Add Workers
+```bash
+curl -X POST "http://localhost:8000/workforce/workers/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "worker_id": "ELC001",
+    "first_name": "John",
+    "last_name": "Smith",
+    "phone_number": "+1-555-0101",
+    "email": "john.smith@buildbuzz.com",
+    "address": "123 Main St, Detroit, MI 48201",
+    "profession_id": 1,
+    "skill_rating": 8.5,
+    "wage_rate": 35.50,
+    "availability": "Available"
+  }'
+```
+
+#### 3. Assign Worker to Project
+```bash
+curl -X POST "http://localhost:8000/workforce/workers/1/assign-project?project_id=1&start_date=2024-10-01&end_date=2024-12-15" \
+  -H "Content-Type: application/json"
+```
+
+#### 4. Get Available Workers
+```bash
+curl "http://localhost:8000/workforce/workers/available"
+```
+
+#### 5. Get Workers by Skill Rating
+```bash
+curl "http://localhost:8000/workforce/workers/?min_skill_rating=8.0"
+```
+
+#### 6. Get Worker's Project History
+```bash
+curl "http://localhost:8000/workforce/project-history/worker/1"
+```
+
+#### 7. Complete Project Assignment
+```bash
+curl -X POST "http://localhost:8000/workforce/project-history/1/complete?end_date=2024-12-15&performance_rating=4.5&notes=Excellent work on electrical installation" \
+  -H "Content-Type: application/json"
+```
+
+### Workforce Query Examples
+
+#### Get All Electricians
+```bash
+curl "http://localhost:8000/workforce/workers/?profession_id=1"
+```
+
+#### Get High-Skilled Available Workers
+```bash
+curl "http://localhost:8000/workforce/workers/?availability=Available&min_skill_rating=8.5"
+```
+
+#### Get Project's Worker History
+```bash
+curl "http://localhost:8000/workforce/project-history/project/1"
+```
+
+#### Get All Active Assignments
+```bash
+curl "http://localhost:8000/workforce/project-history/active"
+```
+
+---
+
+## Complete Project Workflow
 
 #### 1. Create Project
 ```bash
