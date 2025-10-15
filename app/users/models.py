@@ -12,8 +12,13 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     # Hashed password will be added in the final security phase
     # hashed_password = Column(String, nullable=False)
-    role = Column(String, nullable=False) 
-    # Roles: 'clerk', 'project_manager', 'accountant', 'client', 'business_admin'
+    
+    # Authentication fields (Clerk integration)
+    clerk_user_id = Column(String(255), unique=True, nullable=True, index=True)
+    role = Column(String, nullable=False, default='business_clerk') 
+    # Roles: 'business_admin', 'business_clerk', 'project_manager', 'accountant'
+    permissions = Column(Text, nullable=True)  # JSON as text
+    last_login_at = Column(DateTime(timezone=True), nullable=True)
     
     # Clerk-Controlled User Management
     is_active = Column(Boolean, default=True)
