@@ -5,3 +5,6 @@ psycopg[binary]
 cloud-sql-python-connector
 pg8000
 python-dotenv
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.9
+python-jose[cryptography]==3.3.0

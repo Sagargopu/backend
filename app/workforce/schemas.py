@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, date
-from typing import Optional, List, Union
+from typing import Optional, List
 from decimal import Decimal
 
 # ===============================
@@ -37,14 +37,9 @@ class WorkerBase(BaseModel):
     first_name: str
     last_name: str
     phone_number: Optional[str] = None
-    email: Optional[EmailStr] = None
-    address: Optional[str] = None
+    email: Optional[str] = None
     profession_id: int
-    skill_rating: Union[Decimal, float]  # 1.0 to 10.0
-    wage_rate: Union[Decimal, float]     # Hourly wage rate
-    current_project_id: Optional[int] = None
-    current_project_start_date: Optional[date] = None
-    current_project_end_date: Optional[date] = None
+    wage_rate: Decimal
     availability: str = "Available"  # "Available", "Assigned", "Unavailable", "On Leave"
 
 class WorkerCreate(WorkerBase):
@@ -55,14 +50,9 @@ class WorkerUpdate(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone_number: Optional[str] = None
-    email: Optional[EmailStr] = None
-    address: Optional[str] = None
+    email: Optional[str] = None
     profession_id: Optional[int] = None
-    skill_rating: Optional[Union[Decimal, float]] = None
-    wage_rate: Optional[Union[Decimal, float]] = None
-    current_project_id: Optional[int] = None
-    current_project_start_date: Optional[date] = None
-    current_project_end_date: Optional[date] = None
+    wage_rate: Optional[Decimal] = None
     availability: Optional[str] = None
 
 class Worker(WorkerBase):
@@ -87,8 +77,6 @@ class WorkerProjectHistoryBase(BaseModel):
     end_date: Optional[date] = None
     role: Optional[str] = None
     status: str = "Active"  # "Active", "Completed", "Terminated"
-    performance_rating: Optional[Union[Decimal, float]] = None
-    notes: Optional[str] = None
 
 class WorkerProjectHistoryCreate(WorkerProjectHistoryBase):
     pass
@@ -99,8 +87,6 @@ class WorkerProjectHistoryUpdate(BaseModel):
     end_date: Optional[date] = None
     role: Optional[str] = None
     status: Optional[str] = None
-    performance_rating: Optional[Union[Decimal, float]] = None
-    notes: Optional[str] = None
 
 class WorkerProjectHistory(WorkerProjectHistoryBase):
     id: int

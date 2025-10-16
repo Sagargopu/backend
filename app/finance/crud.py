@@ -1,171 +1,257 @@
 from sqlalchemy.orm import Session
-from . import models, schemas
-from datetime import datetime, date
+from typing import List, Optional
+from datetime import datetime
 
-# Vendor CRUD
+from . import models, schemas
+
+# ===============================
+# VENDOR CRUD
+# ===============================
+
 def create_vendor(db: Session, vendor: schemas.VendorCreate):
+    """Create a new vendor"""
     db_vendor = models.Vendor(**vendor.dict())
     db.add(db_vendor)
     db.commit()
     db.refresh(db_vendor)
     return db_vendor
 
+def get_vendor(db: Session, vendor_id: int):
+    """Get vendor by ID"""
+    return db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
+
 def get_vendors(db: Session, skip: int = 0, limit: int = 100):
+    """Get list of all vendors"""
     return db.query(models.Vendor).offset(skip).limit(limit).all()
 
-# Purchase Order CRUD
+def get_active_vendors(db: Session):
+    """Get all active vendors"""
+    return db.query(models.Vendor).filter(models.Vendor.is_active == True).all()
+
+def update_vendor(db: Session, vendor_id: int, vendor_update: schemas.VendorUpdate):
+    """Update vendor"""
+    db_vendor = db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
+    if db_vendor:
+        update_data = vendor_update.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_vendor, key, value)
+        db.commit()
+        db.refresh(db_vendor)
+    return db_vendor
+
+def delete_vendor(db: Session, vendor_id: int):
+    """Delete vendor"""
+    db_vendor = db.query(models.Vendor).filter(models.Vendor.id == vendor_id).first()
+    if db_vendor:
+        db.delete(db_vendor)
+        db.commit()
+        return True
+    return False
+
+# ===============================
+# PURCHASE ORDER CRUD
+# ===============================
+
 def create_purchase_order(db: Session, po: schemas.PurchaseOrderCreate):
+    """Create a new purchase order"""
     db_po = models.PurchaseOrder(**po.dict())
     db.add(db_po)
     db.commit()
     db.refresh(db_po)
     return db_po
 
+def get_purchase_order(db: Session, po_id: int):
+    """Get purchase order by ID"""
+    return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
+
 def get_purchase_orders(db: Session, skip: int = 0, limit: int = 100):
+    """Get list of all purchase orders"""
     return db.query(models.PurchaseOrder).offset(skip).limit(limit).all()
 
-def approve_purchase_order(db: Session, po_id: int, approver_id: int):
+def get_purchase_orders_by_status(db: Session, status: str):
+    """Get purchase orders by status"""
+    return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.status == status).all()
+
+def get_purchase_orders_by_task(db: Session, task_id: int):
+    """Get purchase orders by task"""
+    return db.query(models.PurchaseOrder).filter(models.PurchaseOrder.task_id == task_id).all()
+
+def update_purchase_order(db: Session, po_id: int, po_update: schemas.PurchaseOrderUpdate):
+    """Update purchase order"""
     db_po = db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
     if db_po:
-        # Use SQLAlchemy update method instead of direct assignment
-        db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).update({
-            "status": "Approved",
-            "approved_by_id": approver_id
-        })
+        update_data = po_update.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_po, key, value)
         db.commit()
         db.refresh(db_po)
     return db_po
 
+def delete_purchase_order(db: Session, po_id: int):
+    """Delete purchase order"""
+    db_po = db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
+    if db_po:
+        db.delete(db_po)
+        db.commit()
+        return True
+    return False
 
-# Change Order CRUD
+# ===============================
+# PURCHASE ORDER ITEM CRUD
+# ===============================
+
+def create_purchase_order_item(db: Session, item: schemas.PurchaseOrderItemCreate):
+    """Create a new purchase order item"""
+    db_item = models.PurchaseOrderItem(**item.dict())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+def get_purchase_order_item(db: Session, item_id: int):
+    """Get purchase order item by ID"""
+    return db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.id == item_id).first()
+
+def get_purchase_order_items(db: Session, po_id: int):
+    """Get all items for a purchase order"""
+    return db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.purchase_order_id == po_id).all()
+
+def update_purchase_order_item(db: Session, item_id: int, item_update: schemas.PurchaseOrderItemUpdate):
+    """Update purchase order item"""
+    db_item = db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.id == item_id).first()
+    if db_item:
+        update_data = item_update.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_item, key, value)
+        db.commit()
+        db.refresh(db_item)
+    return db_item
+
+def delete_purchase_order_item(db: Session, item_id: int):
+    """Delete purchase order item"""
+    db_item = db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.id == item_id).first()
+    if db_item:
+        db.delete(db_item)
+        db.commit()
+        return True
+    return False
+
+# ===============================
+# CHANGE ORDER CRUD
+# ===============================
+
 def create_change_order(db: Session, co: schemas.ChangeOrderCreate):
+    """Create a new change order"""
     db_co = models.ChangeOrder(**co.dict())
     db.add(db_co)
     db.commit()
     db.refresh(db_co)
     return db_co
 
-def approve_change_order(db: Session, co_id: int, approver_id: int):
+def get_change_order(db: Session, co_id: int):
+    """Get change order by ID"""
+    return db.query(models.ChangeOrder).filter(models.ChangeOrder.id == co_id).first()
+
+def get_change_orders(db: Session, skip: int = 0, limit: int = 100):
+    """Get list of all change orders"""
+    return db.query(models.ChangeOrder).offset(skip).limit(limit).all()
+
+def get_change_orders_by_status(db: Session, status: str):
+    """Get change orders by status"""
+    return db.query(models.ChangeOrder).filter(models.ChangeOrder.status == status).all()
+
+def get_change_orders_by_task(db: Session, task_id: int):
+    """Get change orders by task"""
+    return db.query(models.ChangeOrder).filter(models.ChangeOrder.task_id == task_id).all()
+
+def update_change_order(db: Session, co_id: int, co_update: schemas.ChangeOrderUpdate):
+    """Update change order"""
     db_co = db.query(models.ChangeOrder).filter(models.ChangeOrder.id == co_id).first()
     if db_co:
-        # Use SQLAlchemy update method instead of direct assignment
-        db.query(models.ChangeOrder).filter(models.ChangeOrder.id == co_id).update({
-            "status": "Approved",
-            "approved_by_id": approver_id
-        })
+        update_data = co_update.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_co, key, value)
         db.commit()
         db.refresh(db_co)
-        
-        # Note: Project budget updates are now handled in the enhanced function
-        # This function is kept for backward compatibility
-
     return db_co
 
-
-# Contract CRUD
-def create_contract(db: Session, contract: schemas.ContractCreate):
-    db_contract = models.Contract(**contract.dict())
-    db.add(db_contract)
-    db.commit()
-    db.refresh(db_contract)
-    return db_contract
-
-# ClientInvoice CRUD
-def create_client_invoice(db: Session, invoice: schemas.ClientInvoiceCreate):
-    db_invoice = models.ClientInvoice(**invoice.dict())
-    db.add(db_invoice)
-    db.commit()
-    db.refresh(db_invoice)
-    return db_invoice
-
-# VendorInvoice CRUD
-def create_vendor_invoice(db: Session, invoice: schemas.VendorInvoiceCreate):
-    db_invoice = models.VendorInvoice(**invoice.dict())
-    db.add(db_invoice)
-    db.commit()
-    db.refresh(db_invoice)
-    return db_invoice
-
-# Enhanced Change Order CRUD Functions
-
-def get_pending_change_orders(db: Session, skip: int = 0, limit: int = 100):
-    """Get all pending change orders for accountant approval"""
-    return db.query(models.ChangeOrder).filter(
-        models.ChangeOrder.status == 'Pending Approval'
-    ).offset(skip).limit(limit).all()
-
-def approve_change_order_with_transaction(db: Session, co_id: int, approver_id: int, approval_notes: str = ""):
-    """Approve change order and create transaction if extra funds needed"""
+def delete_change_order(db: Session, co_id: int):
+    """Delete change order"""
     db_co = db.query(models.ChangeOrder).filter(models.ChangeOrder.id == co_id).first()
-    if not db_co:
-        return None
-    
-    # Update change order status
-    db.query(models.ChangeOrder).filter(models.ChangeOrder.id == co_id).update({
-        "status": "Approved",
-        "approved_by_id": approver_id
-    })
-    
-    # If change order requires extra funds (positive financial impact), create a transaction
-    if getattr(db_co, 'financial_impact', 0) > 0:
-        transaction_data = {
-            "transaction_type": "outgoing",
-            "expense_name": f"Change Order #{co_id}: {str(getattr(db_co, 'description', 'N/A'))[:50]}...",
-            "description": f"Additional funds for change order: {getattr(db_co, 'description', 'N/A')}",
-            "amount": getattr(db_co, 'financial_impact', 0),
-            "transaction_date": date.today(),
-            "project_id": getattr(db_co, 'project_id', None),
-            "is_project_specific": True,
-            "status": "approved",
-            "approved_by": approver_id,
-            "approved_date": datetime.now(),
-            "approval_notes": approval_notes,
-            "budget_line_item": "Change Orders",
-            "is_budgeted": False,
-            "variance_reason": f"Approved change order #{co_id}"
-        }
-        
-        db_transaction = models.Transaction(**transaction_data)
-        db.add(db_transaction)
-    
+    if db_co:
+        db.delete(db_co)
+        db.commit()
+        return True
+    return False
+
+# ===============================
+# CHANGE ORDER ITEM CRUD
+# ===============================
+
+def create_change_order_item(db: Session, item: schemas.ChangeOrderItemCreate):
+    """Create a new change order item"""
+    db_item = models.ChangeOrderItem(**item.dict())
+    db.add(db_item)
     db.commit()
-    db.refresh(db_co)
-    return db_co
+    db.refresh(db_item)
+    return db_item
 
-def reject_change_order(db: Session, co_id: int, approver_id: int, rejection_reason: str):
-    """Reject a change order with reason"""
-    db_co = db.query(models.ChangeOrder).filter(models.ChangeOrder.id == co_id).first()
-    if not db_co:
-        return None
-    
-    # Update change order status
-    db.query(models.ChangeOrder).filter(models.ChangeOrder.id == co_id).update({
-        "status": "Rejected",
-        "approved_by_id": approver_id
-    })
-    
-    # Note: In a full implementation, you might want to add rejection_reason 
-    # and rejection_date fields to the ChangeOrder model
-    
-    db.commit()
-    db.refresh(db_co)
-    return db_co
+def get_change_order_item(db: Session, item_id: int):
+    """Get change order item by ID"""
+    return db.query(models.ChangeOrderItem).filter(models.ChangeOrderItem.id == item_id).first()
 
-# Transaction CRUD Functions
+def get_change_order_items(db: Session, co_id: int):
+    """Get all items for a change order"""
+    return db.query(models.ChangeOrderItem).filter(models.ChangeOrderItem.change_order_id == co_id).all()
 
-def create_transaction(db: Session, transaction: dict):
+def update_change_order_item(db: Session, item_id: int, item_update: schemas.ChangeOrderItemUpdate):
+    """Update change order item"""
+    db_item = db.query(models.ChangeOrderItem).filter(models.ChangeOrderItem.id == item_id).first()
+    if db_item:
+        update_data = item_update.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_item, key, value)
+        db.commit()
+        db.refresh(db_item)
+    return db_item
+
+def delete_change_order_item(db: Session, item_id: int):
+    """Delete change order item"""
+    db_item = db.query(models.ChangeOrderItem).filter(models.ChangeOrderItem.id == item_id).first()
+    if db_item:
+        db.delete(db_item)
+        db.commit()
+        return True
+    return False
+
+# ===============================
+# TRANSACTION CRUD
+# ===============================
+
+def create_transaction(db: Session, transaction: schemas.TransactionCreate):
     """Create a new transaction"""
-    db_transaction = models.Transaction(**transaction)
+    db_transaction = models.Transaction(**transaction.dict())
     db.add(db_transaction)
     db.commit()
     db.refresh(db_transaction)
     return db_transaction
 
-def get_project_transactions(db: Session, project_id: int, skip: int = 0, limit: int = 100):
-    """Get all transactions for a specific project"""
-    return db.query(models.Transaction).filter(
-        models.Transaction.project_id == project_id
-    ).offset(skip).limit(limit).all()
+def get_transaction(db: Session, transaction_id: int):
+    """Get transaction by ID"""
+    return db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
 
+def get_transactions(db: Session, skip: int = 0, limit: int = 100):
+    """Get list of all transactions"""
+    return db.query(models.Transaction).offset(skip).limit(limit).all()
 
+def get_transactions_by_project(db: Session, project_id: int):
+    """Get transactions by project"""
+    return db.query(models.Transaction).filter(models.Transaction.project_id == project_id).all()
 
+def get_transactions_by_task(db: Session, task_id: int):
+    """Get transactions by task"""
+    return db.query(models.Transaction).filter(models.Transaction.task_id == task_id).all()
+
+def get_transactions_by_type(db: Session, transaction_type: str):
+    """Get transactions by type"""
+    return db.query(models.Transaction).filter(models.Transaction.transaction_type == transaction_type).all()

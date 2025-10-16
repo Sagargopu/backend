@@ -3,15 +3,21 @@ from datetime import datetime, date
 from typing import List, Optional
 from decimal import Decimal
 
-# Schemas for Assignment
-class AssignmentBase(BaseModel):
-    task_id: int
-    user_id: int
+# Schemas for ProjectType
+class ProjectTypeBase(BaseModel):
+    category: str
+    type_name: str
+    description: Optional[str] = None
 
-class AssignmentCreate(AssignmentBase):
+class ProjectTypeCreate(ProjectTypeBase):
     pass
 
-class Assignment(AssignmentBase):
+class ProjectTypeUpdate(BaseModel):
+    category: Optional[str] = None
+    type_name: Optional[str] = None
+    description: Optional[str] = None
+
+class ProjectType(ProjectTypeBase):
     id: int
     created_at: datetime
 
@@ -24,15 +30,32 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
     status: str = 'To Do'
     priority: str = 'Medium'
+    task_type: Optional[str] = None
+    budget: Optional[Decimal] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
 
 class TaskCreate(TaskBase):
-    component_id: int
+    component_id: Optional[int] = None
+    project_id: int
+
+class TaskUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    task_type: Optional[str] = None
+    budget: Optional[Decimal] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    component_id: Optional[int] = None
 
 class Task(TaskBase):
     id: int
-    component_id: int
+    component_id: Optional[int] = None
+    project_id: int
     created_at: datetime
-    assignments: List[Assignment] = []
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -43,10 +66,11 @@ class ProjectBase(BaseModel):
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    budget: Optional[Decimal] = None
-    status: str = 'planning'
-    client_name: Optional[str] = None
+    planned_budget: Optional[Decimal] = None
+    status: str = 'planned'
+    client_id: Optional[int] = None
     project_manager_id: Optional[int] = None
+    project_type_id: Optional[int] = None
 
 class ProjectCreate(ProjectBase):
     pass
@@ -56,13 +80,16 @@ class ProjectUpdate(BaseModel):
     description: Optional[str] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    budget: Optional[Decimal] = None
+    planned_budget: Optional[Decimal] = None
+    actual_budget: Optional[Decimal] = None
     status: Optional[str] = None
-    client_name: Optional[str] = None
+    client_id: Optional[int] = None
     project_manager_id: Optional[int] = None
+    project_type_id: Optional[int] = None
 
 class Project(ProjectBase):
     id: int
+    actual_budget: Optional[Decimal] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
