@@ -8,42 +8,44 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String, index=True)
+    first_name = Column(String, index=True, nullable=False)
+    last_name = Column(String, index=True, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    # Hashed password will be added in the final security phase
-    # hashed_password = Column(String, nullable=False)
+    hashed_password = Column(String, nullable=True)  # Optional for invitation-based signup
     
-    # Authentication fields (Clerk integration)
-    clerk_user_id = Column(String(255), unique=True, nullable=True, index=True)
-    role = Column(String, nullable=False, default='business_clerk') 
-    # Roles: 'business_admin', 'business_clerk', 'project_manager', 'accountant'
-    permissions = Column(Text, nullable=True)  # JSON as text
-    last_login_at = Column(DateTime(timezone=True), nullable=True)
+    # Role and authentication fields
+    role = Column(String, nullable=False, default='clerk')  # superadmin, business_admin, clerk, project_manager, accountant, client
+    last_login_at = Column(DateTime(timezone=True), nullable=True)  # Track last login time
     
-    # Clerk-Controlled User Management
+    
+    # Invitation Management
     is_active = Column(Boolean, default=True)
-    invited_by_clerk = Column(Integer, ForeignKey("users.id"), nullable=True)  # Which clerk invited this user
-    invitation_token = Column(String, nullable=True)  # Token for account setup
+    invited_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Which user invited this user
+    invitation_token = Column(String, nullable=True, unique=True)  # Token for account setup
     invitation_status = Column(String, default='pending')  # 'pending', 'accepted', 'expired'
     invitation_sent_date = Column(DateTime(timezone=True), nullable=True)
+    invitation_expires_at = Column(DateTime(timezone=True), nullable=True)  # Invitation expiry
     account_setup_completed = Column(Boolean, default=False)
-    
-    # Basic Contact Information
     phone_number = Column(String, nullable=True)
     address = Column(Text, nullable=True)
     emergency_contact_name = Column(String, nullable=True)
     emergency_contact_phone = Column(String, nullable=True)
     
-    # Relationships
-    managed_projects = relationship("Project", back_populates="project_manager", foreign_keys="Project.project_manager_id")
-    invited_by = relationship("User", remote_side=[id], foreign_keys=[invited_by_clerk])
+    # Relationships (using string references to avoid circular imports)
+    invited_by = relationship("User", remote_side=[id], foreign_keys=[invited_by_user_id])
     
+    # Cross-model relationships (using string references)
+    managed_projects = relationship("Project", foreign_keys="Project.project_manager_id", lazy="dynamic")
+    uploaded_documents = relationship("Document", back_populates="uploader")
+    document_permissions = relationship("DocumentAccess", foreign_keys="DocumentAccess.user_id", back_populates="user")
     approved_transactions = relationship("Transaction", foreign_keys="Transaction.approved_by", back_populates="approver")
     created_transactions = relationship("Transaction", foreign_keys="Transaction.created_by", back_populates="creator")
     
-    # Document relationships
-    uploaded_documents = relationship("Document", back_populates="uploader")
-    document_permissions = relationship("DocumentAccess", foreign_keys="DocumentAccess.user_id", back_populates="user")
+    # Computed properties
+    @property
+    def full_name(self) -> str:
+        """Get full name by combining first and last name"""
+        return f"{self.first_name} {self.last_name}".strip()
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

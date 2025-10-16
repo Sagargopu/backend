@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
 from typing import List, Optional
 from datetime import date
 
@@ -85,19 +84,6 @@ def get_available_workers(db: Session):
     """Get all available workers"""
     return db.query(models.Worker).filter(models.Worker.availability == "Available").all()
 
-def get_workers_by_skill_rating(db: Session, min_rating: float, max_rating: float = 10.0):
-    """Get workers by skill rating range"""
-    return db.query(models.Worker).filter(
-        and_(
-            models.Worker.skill_rating >= min_rating,
-            models.Worker.skill_rating <= max_rating
-        )
-    ).all()
-
-def get_workers_by_current_project(db: Session, project_id: int):
-    """Get workers currently assigned to a project"""
-    return db.query(models.Worker).filter(models.Worker.current_project_id == project_id).all()
-
 def update_worker(db: Session, worker_id: int, worker_update: schemas.WorkerUpdate):
     """Update worker"""
     db_worker = db.query(models.Worker).filter(models.Worker.id == worker_id).first()
@@ -117,40 +103,6 @@ def delete_worker(db: Session, worker_id: int):
         db.commit()
         return True
     return False
-
-def assign_worker_to_project(db: Session, worker_id: int, project_id: int, start_date: date, end_date: Optional[date] = None):
-    """Assign worker to a project"""
-    db_worker = db.query(models.Worker).filter(models.Worker.id == worker_id).first()
-    if db_worker:
-        # Update worker project assignment using setattr
-        for field, value in {
-            "current_project_id": project_id,
-            "current_project_start_date": start_date,
-            "current_project_end_date": end_date,
-            "availability": "Assigned"
-        }.items():
-            setattr(db_worker, field, value)
-        
-        db.commit()
-        db.refresh(db_worker)
-    return db_worker
-
-def unassign_worker_from_project(db: Session, worker_id: int):
-    """Remove worker from current project"""
-    db_worker = db.query(models.Worker).filter(models.Worker.id == worker_id).first()
-    if db_worker:
-        # Update worker to remove project assignment using setattr
-        for field, value in {
-            "current_project_id": None,
-            "current_project_start_date": None,
-            "current_project_end_date": None,
-            "availability": "Available"
-        }.items():
-            setattr(db_worker, field, value)
-        
-        db.commit()
-        db.refresh(db_worker)
-    return db_worker
 
 # ===============================
 # WORKER PROJECT HISTORY CRUD
@@ -191,23 +143,6 @@ def update_worker_project_history(db: Session, history_id: int, history_update: 
         db.refresh(db_history)
     return db_history
 
-def complete_worker_project_assignment(db: Session, history_id: int, end_date: date, performance_rating: Optional[float] = None, notes: Optional[str] = None):
-    """Mark a worker project assignment as completed"""
-    db_history = db.query(models.WorkerProjectHistory).filter(models.WorkerProjectHistory.id == history_id).first()
-    if db_history:
-        # Update project history assignment using setattr
-        setattr(db_history, "end_date", end_date)
-        setattr(db_history, "status", "Completed")
-        
-        if performance_rating:
-            setattr(db_history, "performance_rating", performance_rating)
-        if notes:
-            setattr(db_history, "notes", notes)
-            
-        db.commit()
-        db.refresh(db_history)
-    return db_history
-
 def delete_worker_project_history(db: Session, history_id: int):
     """Delete worker project history"""
     db_history = db.query(models.WorkerProjectHistory).filter(models.WorkerProjectHistory.id == history_id).first()
@@ -216,19 +151,3 @@ def delete_worker_project_history(db: Session, history_id: int):
         db.commit()
         return True
     return False
-
-# ===============================
-# COMBINED OPERATIONS
-# ===============================
-
-def get_worker_with_profession(db: Session, worker_id: int):
-    """Get worker with profession details"""
-    return db.query(models.Worker).filter(models.Worker.id == worker_id).first()
-
-def get_worker_with_history(db: Session, worker_id: int):
-    """Get worker with complete project history"""
-    return db.query(models.Worker).filter(models.Worker.id == worker_id).first()
-
-def get_workers_with_profession(db: Session, skip: int = 0, limit: int = 100):
-    """Get workers with profession details"""
-    return db.query(models.Worker).offset(skip).limit(limit).all()

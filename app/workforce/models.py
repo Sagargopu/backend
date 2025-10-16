@@ -35,19 +35,12 @@ class Worker(Base):
     last_name = Column(String(50), nullable=False, index=True)
     phone_number = Column(String(20))
     email = Column(String(100), unique=True, index=True)
-    address = Column(Text)
     
     # Profession and Skills
     profession_id = Column(Integer, ForeignKey("professions.id"), nullable=False)
-    skill_rating = Column(DECIMAL(3, 1), nullable=False)  # 1.0 to 10.0 skill rating
     
     # Wages
     wage_rate = Column(DECIMAL(10, 2), nullable=False)  # Hourly wage rate
-    
-    # Current Project
-    current_project_id = Column(Integer, nullable=True)  # Reference to current project
-    current_project_start_date = Column(Date, nullable=True)
-    current_project_end_date = Column(Date, nullable=True)
     
     # Availability Status
     availability = Column(String(20), default="Available")  # "Available", "Assigned", "Unavailable", "On Leave"
@@ -67,7 +60,7 @@ class WorkerProjectHistory(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     worker_id = Column(Integer, ForeignKey("workers.id"), nullable=False)
-    project_id = Column(Integer, nullable=False)  # Reference to project
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)  # Reference to project
     
     # Project assignment details
     start_date = Column(Date, nullable=False)
@@ -77,12 +70,9 @@ class WorkerProjectHistory(Base):
     # Project status
     status = Column(String(20), default="Active")  # "Active", "Completed", "Terminated"
     
-    # Performance on this project
-    performance_rating = Column(DECIMAL(3, 1))  # 1.0 to 5.0 rating for this project
-    notes = Column(Text)
-    
     # Relationships
     worker = relationship("Worker", back_populates="project_history")
+    project = relationship("Project")  # Relationship to Project
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

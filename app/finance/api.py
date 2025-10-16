@@ -1,154 +1,274 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 
 from . import crud, models, schemas
-from app.database import SessionLocal
-from app.users import crud as user_crud
+from app.database import get_db
 
 router = APIRouter()
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# ===============================
+# VENDOR ENDPOINTS
+# ===============================
 
-# Vendor endpoints
 @router.post("/vendors/", response_model=schemas.Vendor)
 def create_vendor(vendor: schemas.VendorCreate, db: Session = Depends(get_db)):
+    """Create a new vendor"""
     return crud.create_vendor(db=db, vendor=vendor)
 
 @router.get("/vendors/", response_model=List[schemas.Vendor])
 def read_vendors(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_vendors(db, skip=skip, limit=limit)
+    """Get all vendors"""
+    vendors = crud.get_vendors(db, skip=skip, limit=limit)
+    return vendors
 
-# Purchase Order endpoints
+@router.get("/vendors/{vendor_id}", response_model=schemas.Vendor)
+def read_vendor(vendor_id: int, db: Session = Depends(get_db)):
+    """Get vendor by ID"""
+    vendor = crud.get_vendor(db, vendor_id=vendor_id)
+    if vendor is None:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return vendor
+
+@router.get("/vendors/active", response_model=List[schemas.Vendor])
+def read_active_vendors(db: Session = Depends(get_db)):
+    """Get all active vendors"""
+    vendors = crud.get_active_vendors(db)
+    return vendors
+
+@router.put("/vendors/{vendor_id}", response_model=schemas.Vendor)
+def update_vendor(vendor_id: int, vendor: schemas.VendorUpdate, db: Session = Depends(get_db)):
+    """Update vendor by ID"""
+    db_vendor = crud.update_vendor(db, vendor_id=vendor_id, vendor_update=vendor)
+    if db_vendor is None:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return db_vendor
+
+@router.delete("/vendors/{vendor_id}")
+def delete_vendor(vendor_id: int, db: Session = Depends(get_db)):
+    """Delete vendor by ID"""
+    deleted = crud.delete_vendor(db, vendor_id=vendor_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return {"detail": "Vendor deleted successfully"}
+
+# ===============================
+# PURCHASE ORDER ENDPOINTS
+# ===============================
+
 @router.post("/purchase-orders/", response_model=schemas.PurchaseOrder)
 def create_purchase_order(po: schemas.PurchaseOrderCreate, db: Session = Depends(get_db)):
+    """Create a new purchase order"""
     return crud.create_purchase_order(db=db, po=po)
 
 @router.get("/purchase-orders/", response_model=List[schemas.PurchaseOrder])
 def read_purchase_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_purchase_orders(db, skip=skip, limit=limit)
+    """Get all purchase orders"""
+    pos = crud.get_purchase_orders(db, skip=skip, limit=limit)
+    return pos
 
-@router.post("/purchase-orders/{po_id}/approve", response_model=schemas.PurchaseOrder)
-def approve_purchase_order(po_id: int, approver_id: int, db: Session = Depends(get_db)):
-    db_po = crud.approve_purchase_order(db, po_id=po_id, approver_id=approver_id)
+@router.get("/purchase-orders/{po_id}", response_model=schemas.PurchaseOrder)
+def read_purchase_order(po_id: int, db: Session = Depends(get_db)):
+    """Get purchase order by ID"""
+    po = crud.get_purchase_order(db, po_id=po_id)
+    if po is None:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    return po
+
+@router.get("/purchase-orders/by-status/{status}", response_model=List[schemas.PurchaseOrder])
+def read_purchase_orders_by_status(status: str, db: Session = Depends(get_db)):
+    """Get purchase orders by status"""
+    pos = crud.get_purchase_orders_by_status(db, status=status)
+    return pos
+
+@router.get("/purchase-orders/by-task/{task_id}", response_model=List[schemas.PurchaseOrder])
+def read_purchase_orders_by_task(task_id: int, db: Session = Depends(get_db)):
+    """Get purchase orders by task"""
+    pos = crud.get_purchase_orders_by_task(db, task_id=task_id)
+    return pos
+
+@router.put("/purchase-orders/{po_id}", response_model=schemas.PurchaseOrder)
+def update_purchase_order(po_id: int, po: schemas.PurchaseOrderUpdate, db: Session = Depends(get_db)):
+    """Update purchase order by ID"""
+    db_po = crud.update_purchase_order(db, po_id=po_id, po_update=po)
     if db_po is None:
-        raise HTTPException(status_code=404, detail="Purchase Order not found")
+        raise HTTPException(status_code=404, detail="Purchase order not found")
     return db_po
 
+@router.delete("/purchase-orders/{po_id}")
+def delete_purchase_order(po_id: int, db: Session = Depends(get_db)):
+    """Delete purchase order by ID"""
+    deleted = crud.delete_purchase_order(db, po_id=po_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Purchase order not found")
+    return {"detail": "Purchase order deleted successfully"}
 
-# Change Order endpoints
+# ===============================
+# PURCHASE ORDER ITEM ENDPOINTS
+# ===============================
+
+@router.post("/purchase-order-items/", response_model=schemas.PurchaseOrderItem)
+def create_purchase_order_item(item: schemas.PurchaseOrderItemCreate, db: Session = Depends(get_db)):
+    """Create a new purchase order item"""
+    return crud.create_purchase_order_item(db=db, item=item)
+
+@router.get("/purchase-order-items/{item_id}", response_model=schemas.PurchaseOrderItem)
+def read_purchase_order_item(item_id: int, db: Session = Depends(get_db)):
+    """Get purchase order item by ID"""
+    item = crud.get_purchase_order_item(db, item_id=item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Purchase order item not found")
+    return item
+
+@router.get("/purchase-orders/{po_id}/items", response_model=List[schemas.PurchaseOrderItem])
+def read_purchase_order_items(po_id: int, db: Session = Depends(get_db)):
+    """Get all items for a purchase order"""
+    items = crud.get_purchase_order_items(db, po_id=po_id)
+    return items
+
+@router.put("/purchase-order-items/{item_id}", response_model=schemas.PurchaseOrderItem)
+def update_purchase_order_item(item_id: int, item: schemas.PurchaseOrderItemUpdate, db: Session = Depends(get_db)):
+    """Update purchase order item by ID"""
+    db_item = crud.update_purchase_order_item(db, item_id=item_id, item_update=item)
+    if db_item is None:
+        raise HTTPException(status_code=404, detail="Purchase order item not found")
+    return db_item
+
+@router.delete("/purchase-order-items/{item_id}")
+def delete_purchase_order_item(item_id: int, db: Session = Depends(get_db)):
+    """Delete purchase order item by ID"""
+    deleted = crud.delete_purchase_order_item(db, item_id=item_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Purchase order item not found")
+    return {"detail": "Purchase order item deleted successfully"}
+
+# ===============================
+# CHANGE ORDER ENDPOINTS
+# ===============================
+
 @router.post("/change-orders/", response_model=schemas.ChangeOrder)
-def create_change_order(co: schemas.ChangeOrderCreate, creator_id: int, db: Session = Depends(get_db)):
-    """Project Manager creates a change order"""
-    # Verify creator is a project manager
-    creator = user_crud.get_user(db, user_id=creator_id)
-    if creator is None:
-        raise HTTPException(status_code=404, detail="Creator not found")
-    if str(creator.role) != 'project_manager':
-        raise HTTPException(status_code=403, detail="Only project managers can create change orders")
-    
+def create_change_order(co: schemas.ChangeOrderCreate, db: Session = Depends(get_db)):
+    """Create a new change order"""
     return crud.create_change_order(db=db, co=co)
 
-@router.get("/change-orders/pending/", response_model=List[schemas.ChangeOrder])
-def get_pending_change_orders(accountant_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Accountant gets all pending change orders for approval"""
-    accountant = user_crud.get_user(db, user_id=accountant_id)
-    if accountant is None:
-        raise HTTPException(status_code=404, detail="Accountant not found")
-    if str(accountant.role) != 'accountant':
-        raise HTTPException(status_code=403, detail="Only accountants can view pending change orders")
-    
-    return crud.get_pending_change_orders(db, skip=skip, limit=limit)
+@router.get("/change-orders/", response_model=List[schemas.ChangeOrder])
+def read_change_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all change orders"""
+    cos = crud.get_change_orders(db, skip=skip, limit=limit)
+    return cos
 
-@router.post("/change-orders/{co_id}/approve", response_model=schemas.ChangeOrder)
-def approve_change_order(co_id: int, approver_id: int, approval_notes: str = "", db: Session = Depends(get_db)):
-    """Accountant approves a change order and creates transaction if needed"""
-    # Verify approver is an accountant
-    approver = user_crud.get_user(db, user_id=approver_id)
-    if approver is None:
-        raise HTTPException(status_code=404, detail="Approver not found")
-    if str(approver.role) != 'accountant':
-        raise HTTPException(status_code=403, detail="Only accountants can approve change orders")
-    
-    db_co = crud.approve_change_order_with_transaction(db, co_id=co_id, approver_id=approver_id, approval_notes=approval_notes)
+@router.get("/change-orders/{co_id}", response_model=schemas.ChangeOrder)
+def read_change_order(co_id: int, db: Session = Depends(get_db)):
+    """Get change order by ID"""
+    co = crud.get_change_order(db, co_id=co_id)
+    if co is None:
+        raise HTTPException(status_code=404, detail="Change order not found")
+    return co
+
+@router.get("/change-orders/by-status/{status}", response_model=List[schemas.ChangeOrder])
+def read_change_orders_by_status(status: str, db: Session = Depends(get_db)):
+    """Get change orders by status"""
+    cos = crud.get_change_orders_by_status(db, status=status)
+    return cos
+
+@router.get("/change-orders/by-task/{task_id}", response_model=List[schemas.ChangeOrder])
+def read_change_orders_by_task(task_id: int, db: Session = Depends(get_db)):
+    """Get change orders by task"""
+    cos = crud.get_change_orders_by_task(db, task_id=task_id)
+    return cos
+
+@router.put("/change-orders/{co_id}", response_model=schemas.ChangeOrder)
+def update_change_order(co_id: int, co: schemas.ChangeOrderUpdate, db: Session = Depends(get_db)):
+    """Update change order by ID"""
+    db_co = crud.update_change_order(db, co_id=co_id, co_update=co)
     if db_co is None:
-        raise HTTPException(status_code=404, detail="Change Order not found")
+        raise HTTPException(status_code=404, detail="Change order not found")
     return db_co
 
-@router.post("/change-orders/{co_id}/reject", response_model=schemas.ChangeOrder)
-def reject_change_order(co_id: int, approver_id: int, rejection_reason: str, db: Session = Depends(get_db)):
-    """Accountant rejects a change order"""
-    # Verify approver is an accountant
-    approver = user_crud.get_user(db, user_id=approver_id)
-    if approver is None:
-        raise HTTPException(status_code=404, detail="Approver not found")
-    if str(approver.role) != 'accountant':
-        raise HTTPException(status_code=403, detail="Only accountants can reject change orders")
-    
-    db_co = crud.reject_change_order(db, co_id=co_id, approver_id=approver_id, rejection_reason=rejection_reason)
-    if db_co is None:
-        raise HTTPException(status_code=404, detail="Change Order not found")
-    return db_co
+@router.delete("/change-orders/{co_id}")
+def delete_change_order(co_id: int, db: Session = Depends(get_db)):
+    """Delete change order by ID"""
+    deleted = crud.delete_change_order(db, co_id=co_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Change order not found")
+    return {"detail": "Change order deleted successfully"}
 
+# ===============================
+# CHANGE ORDER ITEM ENDPOINTS
+# ===============================
 
-# Contract endpoints
-@router.post("/contracts/", response_model=schemas.Contract)
-def create_contract(contract: schemas.ContractCreate, db: Session = Depends(get_db)):
-    return crud.create_contract(db=db, contract=contract)
+@router.post("/change-order-items/", response_model=schemas.ChangeOrderItem)
+def create_change_order_item(item: schemas.ChangeOrderItemCreate, db: Session = Depends(get_db)):
+    """Create a new change order item"""
+    return crud.create_change_order_item(db=db, item=item)
 
-# ClientInvoice Endpoints
-@router.post("/client-invoices/", response_model=schemas.ClientInvoice)
-def create_client_invoice(invoice: schemas.ClientInvoiceCreate, db: Session = Depends(get_db)):
-    return crud.create_client_invoice(db=db, invoice=invoice)
+@router.get("/change-order-items/{item_id}", response_model=schemas.ChangeOrderItem)
+def read_change_order_item(item_id: int, db: Session = Depends(get_db)):
+    """Get change order item by ID"""
+    item = crud.get_change_order_item(db, item_id=item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Change order item not found")
+    return item
 
-# VendorInvoice Endpoints
-@router.post("/vendor-invoices/", response_model=schemas.VendorInvoice)
-def create_vendor_invoice(invoice: schemas.VendorInvoiceCreate, db: Session = Depends(get_db)):
-    return crud.create_vendor_invoice(db=db, invoice=invoice)
+@router.get("/change-orders/{co_id}/items", response_model=List[schemas.ChangeOrderItem])
+def read_change_order_items(co_id: int, db: Session = Depends(get_db)):
+    """Get all items for a change order"""
+    items = crud.get_change_order_items(db, co_id=co_id)
+    return items
 
-# Transaction endpoints
-@router.post("/transactions/", response_model=dict)
-def create_transaction(transaction_data: dict, creator_id: int, db: Session = Depends(get_db)):
+@router.put("/change-order-items/{item_id}", response_model=schemas.ChangeOrderItem)
+def update_change_order_item(item_id: int, item: schemas.ChangeOrderItemUpdate, db: Session = Depends(get_db)):
+    """Update change order item by ID"""
+    db_item = crud.update_change_order_item(db, item_id=item_id, item_update=item)
+    if db_item is None:
+        raise HTTPException(status_code=404, detail="Change order item not found")
+    return db_item
+
+@router.delete("/change-order-items/{item_id}")
+def delete_change_order_item(item_id: int, db: Session = Depends(get_db)):
+    """Delete change order item by ID"""
+    deleted = crud.delete_change_order_item(db, item_id=item_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Change order item not found")
+    return {"detail": "Change order item deleted successfully"}
+
+# ===============================
+# TRANSACTION ENDPOINTS
+# ===============================
+
+@router.post("/transactions/", response_model=schemas.Transaction)
+def create_transaction(transaction: schemas.TransactionCreate, db: Session = Depends(get_db)):
     """Create a new transaction"""
-    # Verify creator permissions (project managers and accountants can create transactions)
-    creator = user_crud.get_user(db, user_id=creator_id)
-    if creator is None:
-        raise HTTPException(status_code=404, detail="Creator not found")
-    if str(creator.role) not in ['project_manager', 'accountant']:
-        raise HTTPException(status_code=403, detail="Only project managers and accountants can create transactions")
-    
-    transaction_data['created_by'] = creator_id
-    return crud.create_transaction(db=db, transaction=transaction_data)
+    return crud.create_transaction(db=db, transaction=transaction)
 
-@router.get("/projects/{project_id}/transactions/", response_model=List[dict])
-def get_project_transactions(project_id: int, user_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all transactions for a specific project"""
-    # Verify user has access to project transactions
-    user = user_crud.get_user(db, user_id=user_id)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    if str(user.role) not in ['project_manager', 'accountant', 'business_admin']:
-        raise HTTPException(status_code=403, detail="Insufficient permissions to view project transactions")
-    
-    transactions = crud.get_project_transactions(db, project_id=project_id, skip=skip, limit=limit)
-    return [
-        {
-            "id": getattr(t, 'id', None),
-            "expense_name": getattr(t, 'expense_name', ''),
-            "description": getattr(t, 'description', ''),
-            "amount": float(getattr(t, 'amount', 0)),
-            "transaction_date": str(getattr(t, 'transaction_date', '')),
-            "transaction_type": getattr(t, 'transaction_type', ''),
-            "status": getattr(t, 'status', ''),
-            "budget_line_item": getattr(t, 'budget_line_item', '')
-        } for t in transactions
-    ]
+@router.get("/transactions/", response_model=List[schemas.Transaction])
+def read_transactions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all transactions"""
+    transactions = crud.get_transactions(db, skip=skip, limit=limit)
+    return transactions
 
+@router.get("/transactions/{transaction_id}", response_model=schemas.Transaction)
+def read_transaction(transaction_id: int, db: Session = Depends(get_db)):
+    """Get transaction by ID"""
+    transaction = crud.get_transaction(db, transaction_id=transaction_id)
+    if transaction is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return transaction
 
+@router.get("/transactions/by-project/{project_id}", response_model=List[schemas.Transaction])
+def read_transactions_by_project(project_id: int, db: Session = Depends(get_db)):
+    """Get transactions by project"""
+    transactions = crud.get_transactions_by_project(db, project_id=project_id)
+    return transactions
 
+@router.get("/transactions/by-task/{task_id}", response_model=List[schemas.Transaction])
+def read_transactions_by_task(task_id: int, db: Session = Depends(get_db)):
+    """Get transactions by task"""
+    transactions = crud.get_transactions_by_task(db, task_id=task_id)
+    return transactions
+
+@router.get("/transactions/by-type/{transaction_type}", response_model=List[schemas.Transaction])
+def read_transactions_by_type(transaction_type: str, db: Session = Depends(get_db)):
+    """Get transactions by type"""
+    transactions = crud.get_transactions_by_type(db, transaction_type=transaction_type)
+    return transactions

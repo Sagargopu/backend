@@ -1,22 +1,40 @@
-"""
-Database Reset Script for BuildBuzz API
-This script will:
-1. Drop all existing tables
-2. Recreate all tables with updated models
-3. Optionally add sample data
-"""
+#!/usr/bin/env python3"""
 
-import os
-import sys
+"""Database Reset Script for BuildBuzz API
+
+Database reset script for BuildBuzzThis script will:
+
+1. Drop all existing tables
+
+This script resets the database by recreating all tables and adding sample data.2. Recreate all tables with updated models
+
+It's placed in the scripts directory for organization.3. Optionally add sample data
+
+""""""
+
+
+
+import sysimport os
+
+import osimport sys
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sqlalchemy import text, MetaData
-from app.database import engine, Base
-from app.users import models as user_models
-from app.projects import models as project_models
-from app.documents import models as document_models
-from app.finance import models as finance_models
+# Add parent directory to path so we can import from the main project
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))from sqlalchemy import text, MetaData
+
+from app.database import engine, Base
+
+# Import and run the main reset functionfrom app.users import models as user_models
+
+from reset_database import mainfrom app.projects import models as project_models
+
+from app.documents import models as document_models
+
+if __name__ == "__main__":from app.finance import models as finance_models
+
+    main()
 def drop_all_tables():
     """Drop all existing tables"""
     print("🗑️  Dropping all existing tables...")
@@ -77,7 +95,8 @@ def add_sample_data():
     try:
         # Create sample clerk user
         sample_clerk = user_models.User(
-            full_name="System Administrator",
+            first_name="System",
+            last_name="Administrator",
             email="admin@buildbuzz.com",
             role="clerk",
             is_active=True,
@@ -87,7 +106,8 @@ def add_sample_data():
         
         # Create sample business admin
         sample_business_admin = user_models.User(
-            full_name="Business Administrator",
+            first_name="Business",
+            last_name="Administrator",
             email="business@buildbuzz.com", 
             role="business_admin",
             is_active=True,
@@ -97,7 +117,8 @@ def add_sample_data():
         
         # Create sample project manager
         sample_pm = user_models.User(
-            full_name="Project Manager",
+            first_name="Project",
+            last_name="Manager",
             email="pm@buildbuzz.com",
             role="project_manager",
             is_active=True,
@@ -107,7 +128,8 @@ def add_sample_data():
         
         # Create sample accountant
         sample_accountant = user_models.User(
-            full_name="Chief Accountant",
+            first_name="Chief",
+            last_name="Accountant",
             email="accountant@buildbuzz.com",
             role="accountant",
             is_active=True,
@@ -117,7 +139,8 @@ def add_sample_data():
         
         # Create sample client
         sample_client = user_models.User(
-            full_name="Client Representative",
+            first_name="Client",
+            last_name="Representative",
             email="client@buildbuzz.com",
             role="client",
             is_active=True,

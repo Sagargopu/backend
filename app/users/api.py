@@ -1,30 +1,215 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from . import crud, schemas
+from .roles import RolePermissions, UserRole
 from ..database import get_db
 
 router = APIRouter()
 
 # ===============================
-# BASIC USER MANAGEMENT ONLY
+# ROLE-BASED INVITATION SYSTEM
+# ===============================
+
+@router.post("/invite/", response_model=schemas.User)
+def send_invitation(
+    invitation: schemas.UserInvitation, 
+    inviter_id: int, 
+    db: Session = Depends(get_db)
+):
+    """Send role-based invitation to a new user"""
+    try:
+        invited_user = crud.send_user_invitation(db=db, invitation=invitation, inviter_id=inviter_id)
+        return invited_user
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/signup/", response_model=schemas.User)
+def user_signup(
+    signup_data: schemas.UserSignup, 
+    db: Session = Depends(get_db)
+):
+    """Complete user signup using invitation token"""
+    try:
+        user = crud.complete_user_signup(db=db, signup_data=signup_data)
+        return user
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/login/", response_model=schemas.LoginResponse)
+def user_login(
+    login_data: schemas.UserLogin, 
+    db: Session = Depends(get_db)
+):
+    """Authenticate user and get navigation route based on role"""
+    try:
+        user, navigation_route = crud.authenticate_user(db=db, login_data=login_data)
+        return schemas.LoginResponse(
+            user=user,
+            navigation_route=navigation_route
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+@router.get("/invitation/{token}/", response_model=schemas.User)
+def get_invitation_details(token: str, db: Session = Depends(get_db)):
+    """Get invitation details by token for signup form"""
+    user = crud.get_user_by_invitation_token(db, token)
+    if not user:
+        raise HTTPException(status_code=404, detail="Invalid or expired invitation token")
+    return user
+
+@router.get("/invitations/pending/", response_model=List[schemas.User])
+def get_pending_invitations(
+    requester_id: int,
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """Get pending invitations (admin/clerk only)"""
+    requester = crud.get_user(db, requester_id)
+    if not requester:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Only superadmin and clerks can view pending invitations
+    if str(requester.role) not in [UserRole.SUPERADMIN.value, UserRole.CLERK.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    invitations = crud.get_pending_invitations(db, skip=skip, limit=limit)
+    return invitations
+
+@router.post("/invitations/expire/")
+def expire_old_invitations(
+    requester_id: int,
+    db: Session = Depends(get_db)
+):
+    """Expire old invitations (admin only)"""
+    requester = crud.get_user(db, requester_id)
+    if not requester:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Only superadmin can expire invitations
+    if str(requester.role) != UserRole.SUPERADMIN.value:
+        raise HTTPException(status_code=403, detail="Only superadmin can expire invitations")
+    
+    expired_count = crud.expire_old_invitations(db)
+    return {"message": f"Expired {expired_count} old invitations"}
+
+@router.get("/roles/", response_model=List[str])
+def get_available_roles(
+    requester_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get roles that the current user can invite"""
+    requester = crud.get_user(db, requester_id)
+    if not requester:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get roles this user can invite
+    available_roles = RolePermissions.INVITATION_PERMISSIONS.get(
+        UserRole(str(requester.role)), 
+        []
+    )
+    
+    return [role.value for role in available_roles]
+
+# ===============================
+# USER MANAGEMENT
+# ===============================
+
+@router.get("/users/", response_model=List[schemas.User])
+def get_users(
+    requester_id: int,
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """Get users (admin/clerk only)"""
+    requester = crud.get_user(db, requester_id)
+    if not requester:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Only admin and clerk can view all users
+    if str(requester.role) not in [UserRole.SUPERADMIN.value, UserRole.BUSINESS_ADMIN.value, UserRole.CLERK.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    users = crud.get_users(db, skip=skip, limit=limit)
+    return users
+
+@router.get("/users/role/{role}/", response_model=List[schemas.User])
+def get_users_by_role(
+    role: str,
+    requester_id: int,
+    skip: int = 0, 
+    limit: int = 100, 
+    db: Session = Depends(get_db)
+):
+    """Get users by role (admin/clerk only)"""
+    requester = crud.get_user(db, requester_id)
+    if not requester:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Only admin and clerk can view users by role
+    if str(requester.role) not in [UserRole.SUPERADMIN.value, UserRole.BUSINESS_ADMIN.value, UserRole.CLERK.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    # Validate role
+    if role not in [r.value for r in UserRole]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    
+    users = crud.get_users_by_role(db, role, skip=skip, limit=limit)
+    return users
+
+@router.put("/users/{user_id}/activate/")
+def activate_user_account(
+    user_id: int,
+    requester_id: int,
+    db: Session = Depends(get_db)
+):
+    """Activate user account (admin only)"""
+    requester = crud.get_user(db, requester_id)
+    if not requester:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Only superadmin and business admin can activate users
+    if str(requester.role) not in [UserRole.SUPERADMIN.value, UserRole.BUSINESS_ADMIN.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    user = crud.activate_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User activated successfully"}
+
+@router.put("/users/{user_id}/deactivate/")
+def deactivate_user_account(
+    user_id: int,
+    requester_id: int,
+    db: Session = Depends(get_db)
+):
+    """Deactivate user account (admin only)"""
+    requester = crud.get_user(db, requester_id)
+    if not requester:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Only superadmin and business admin can deactivate users
+    if str(requester.role) not in [UserRole.SUPERADMIN.value, UserRole.BUSINESS_ADMIN.value]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    
+    user = crud.deactivate_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {"message": "User deactivated successfully"}
+
+# ===============================
+# LEGACY ENDPOINTS (for backward compatibility)
 # ===============================
 
 @router.post("/clerk/invite-user/", response_model=schemas.User)
 def clerk_invite_user(user_invite: schemas.ClerkUserInvite, clerk_id: int, db: Session = Depends(get_db)):
-    """Clerk creates and invites new users (accountants, project managers, clients)"""
-    # Verify clerk has permission
-    clerk = crud.get_user(db, user_id=clerk_id)
-    if clerk is None:
-        raise HTTPException(status_code=404, detail="Clerk not found")
-    if str(clerk.role) != 'clerk':
-        raise HTTPException(status_code=403, detail="Only clerks can invite users")
-    
-    # Check if user already exists
-    if crud.get_user_by_email(db, email=user_invite.email):
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
+    """Legacy endpoint - use /invite/ instead"""
     return crud.clerk_invite_user(db=db, user_invite=user_invite, clerk_id=clerk_id)
 
 @router.post("/setup-account/", response_model=schemas.User)
@@ -91,22 +276,6 @@ def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 def read_user(user_id: int, db: Session = Depends(get_db)):
     """Get specific user details"""
     db_user = crud.get_user(db, user_id=user_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return db_user
-
-@router.post("/admin/users/{user_id}/activate", response_model=schemas.User)
-def activate_user(user_id: int, db: Session = Depends(get_db)):
-    """Admin activate user account"""
-    db_user = crud.activate_user(db, user_id=user_id)
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return db_user
-
-@router.post("/admin/users/{user_id}/deactivate", response_model=schemas.User)
-def deactivate_user(user_id: int, db: Session = Depends(get_db)):
-    """Admin deactivate user account"""
-    db_user = crud.deactivate_user(db, user_id=user_id)
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
