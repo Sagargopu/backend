@@ -1,934 +1,894 @@
-# BuildBuzz Backend API Documentation
+# BuildBuzz API Guide
 
-## 🏗️ **Construction Management API**
+## Overview
+This is a comprehensive guide for the BuildBuzz Construction Management API, detailing all available models, endpoints, HTTP methods, and JSON samples.
 
-### **Base URL:** `http://localhost:8000`
+## Base URL
+```
+http://localhost:8000
+```
 
 ---
 
-## 🔐 **Authentication System**
+# 📊 Data Models
 
-### **Authentication Method**
-- **Type:** Role-based authentication with invitation system
-- **Flow:** Invitation → Signup → Login → Role-based access
-- **Roles:** `superadmin`, `business_admin`, `clerk`, `project_manager`, `accountant`, `client`
+## 👤 User Management
 
-### **Authentication Flow**
-1. **Invitation Phase:** Admin sends invitation with role
-2. **Signup Phase:** User accepts invitation and sets password
-3. **Login Phase:** User authenticates with email/password
-4. **Access Phase:** Role-based endpoint access
-
----
-
-## 🎯 **User Roles & Permissions**
-
-### **Role Hierarchy** (Higher roles include lower permissions)
-```
-Superadmin (Level 6) - Full system access
-├── Business Admin (Level 5) - Admin operations
-├── Clerk (Level 4) - Data entry and user management
-├── Project Manager (Level 3) - Project operations
-├── Accountant (Level 2) - Financial operations
-└── Client (Level 1) - Read-only project access
-```
-
-### **Role Capabilities**
-| Role | Can Invite | Can Manage Projects | Can Manage Finances | Navigation Route |
-|------|------------|-------------------|-------------------|------------------|
-| **Superadmin** | All roles | ✅ | ✅ | `/admin/dashboard` |
-| **Business Admin** | Clerk, PM, Accountant, Client | ✅ | ✅ | `/admin/dashboard` |
-| **Clerk** | Client (future) | ❌ | ❌ | `/clerk/dashboard` |
-| **Project Manager** | ❌ | ✅ | View only | `/projects/dashboard` |
-| **Accountant** | ❌ | ❌ | ✅ | `/finance/dashboard` |
-| **Client** | ❌ | ❌ | ❌ | `/client/dashboard` |
-
----
-
-## 🔑 **Authentication Endpoints**
-
-### **1. Send User Invitation**
-```http
-POST /users/invite/
-Content-Type: application/json
-```
-
-**Request Body:**
+### User Model
 ```json
 {
-  "invitation": {
-    "email": "user@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "role": "project_manager",
-    "invitation_message": "Welcome to BuildBuzz!"
-  },
-  "inviter_id": 1
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "id": 2,
-  "email": "user@example.com",
+  "id": 1,
   "first_name": "John",
   "last_name": "Doe",
-  "role": "project_manager",
-  "invitation_token": "abc123def456...",
-  "invitation_status": "pending",
-  "invitation_sent_date": "2025-10-15T10:00:00Z",
-  "invitation_expires_at": "2025-10-22T10:00:00Z",
-  "invited_by_user_id": 1,
-  "is_active": false,
-  "account_setup_completed": false,
-  "created_at": "2025-10-15T10:00:00Z"
-}
-```
-
-**Error Responses:**
-```json
-// 400 Bad Request - Invalid role or user exists
-{
-  "detail": "User with this email already exists"
-}
-
-// 403 Forbidden - Insufficient permissions
-{
-  "detail": "Cannot invite this role"
-}
-```
-
-### **2. User Signup (Complete Invitation)**
-```http
-POST /users/signup/
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "invitation_token": "abc123def456...",
-  "password": "SecurePass123!",
-  "confirm_password": "SecurePass123!",
-  "phone_number": "+1234567890",
-  "address": "123 Main St, City, State",
-  "emergency_contact_name": "Jane Doe",
-  "emergency_contact_phone": "+0987654321"
-}
-```
-
-**Password Requirements:**
-- Minimum 8 characters
-- At least 1 uppercase letter
-- At least 1 lowercase letter  
-- At least 1 number
-- Password confirmation must match
-
-**Response (200 OK):**
-```json
-{
-  "id": 2,
-  "email": "user@example.com",
-  "first_name": "John",
-  "last_name": "Doe",
+  "email": "john.doe@example.com",
   "role": "project_manager",
   "is_active": true,
-  "account_setup_completed": true,
-  "phone_number": "+1234567890",
-  "address": "123 Main St, City, State",
+  "phone_number": "+1-555-0123",
+  "address": "123 Main St, City, State 12345",
   "emergency_contact_name": "Jane Doe",
-  "emergency_contact_phone": "+0987654321",
+  "emergency_contact_phone": "+1-555-0124",
+  "last_login_at": "2025-10-15T10:30:00Z",
   "invitation_status": "accepted",
-  "created_at": "2025-10-15T10:00:00Z"
+  "account_setup_completed": true,
+  "created_at": "2025-01-15T08:00:00Z"
 }
 ```
 
-**Error Responses:**
-```json
-// 400 Bad Request - Invalid token or expired
-{
-  "detail": "Invalid invitation token"
-}
-
-// 400 Bad Request - Password validation
-{
-  "detail": "Password must contain at least one uppercase letter"
-}
-```
-
-### **3. User Login**
-```http
-POST /users/login/
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "email": "user@example.com",
-  "password": "SecurePass123!"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "user": {
-    "id": 2,
-    "email": "user@example.com",
-    "first_name": "John",
-    "last_name": "Doe",
-    "role": "project_manager",
-    "is_active": true,
-    "account_setup_completed": true,
-    "phone_number": "+1234567890",
-    "created_at": "2025-10-15T10:00:00Z"
-  },
-  "navigation_route": "/projects/dashboard",
-  "access_token": null,
-  "token_type": "bearer"
-}
-```
-
-**Error Responses:**
-```json
-// 401 Unauthorized - Invalid credentials
-{
-  "detail": "Incorrect password"
-}
-
-// 401 Unauthorized - Account issues
-{
-  "detail": "Account setup not completed"
-}
-```
-
-### **4. Get Invitation Details**
-```http
-GET /users/invitation/{token}/
-```
-
-**Response (200 OK):**
-```json
-{
-  "id": 2,
-  "email": "user@example.com",
-  "first_name": "John",
-  "last_name": "Doe",
-  "role": "project_manager",
-  "invitation_status": "pending",
-  "invitation_expires_at": "2025-10-22T10:00:00Z"
-}
-```
+**Roles Available:**
+- `superadmin` - Full system access
+- `business_admin` - Business-level administration
+- `project_manager` - Project management capabilities
+- `accountant` - Financial management
+- `clerk` - Basic data entry
+- `client` - Client-specific access
 
 ---
 
-## 👥 **User Management Endpoints**
+## 🏗️ Project Management
 
-### **5. Get All Users** (Admin/Clerk only)
-```http
-GET /users/users/?skip=0&limit=100
-```
-
-**Query Parameters:**
-- `requester_id` (required): ID of the requesting user
-- `skip` (optional): Number of records to skip (default: 0)
-- `limit` (optional): Maximum records to return (default: 100)
-
-**Response (200 OK):**
-```json
-[
-  {
-    "id": 1,
-    "email": "admin@buildbuzz.com",
-    "first_name": "System",
-    "last_name": "Administrator",
-    "role": "superadmin",
-    "is_active": true,
-    "account_setup_completed": true,
-    "phone_number": "+1555-0101",
-    "created_at": "2025-10-15T10:00:00Z"
-  },
-  {
-    "id": 2,
-    "email": "pm@buildbuzz.com",
-    "first_name": "John",
-    "last_name": "Manager",
-    "role": "project_manager",
-    "is_active": true,
-    "account_setup_completed": true,
-    "created_at": "2025-10-15T11:00:00Z"
-  }
-]
-```
-
-### **6. Get Users by Role** (Admin/Clerk only)
-```http
-GET /users/users/role/{role}/?requester_id=1&skip=0&limit=100
-```
-
-**Path Parameters:**
-- `role`: One of `superadmin`, `business_admin`, `clerk`, `project_manager`, `accountant`, `client`
-
-### **7. Get Pending Invitations** (Admin/Clerk only)
-```http
-GET /users/invitations/pending/?requester_id=1&skip=0&limit=100
-```
-
-**Response (200 OK):**
-```json
-[
-  {
-    "id": 3,
-    "email": "pending@example.com",
-    "first_name": "Jane",
-    "last_name": "Smith",
-    "role": "accountant",
-    "invitation_status": "pending",
-    "invitation_sent_date": "2025-10-15T10:00:00Z",
-    "invitation_expires_at": "2025-10-22T10:00:00Z",
-    "invited_by_user_id": 1,
-    "account_setup_completed": false
-  }
-]
-```
-
-### **8. Get Available Roles for Invitation**
-```http
-GET /users/roles/?requester_id=1
-```
-
-**Response (200 OK):**
-```json
-[
-  "clerk",
-  "project_manager", 
-  "accountant",
-  "client"
-]
-```
-
-### **9. Activate User Account** (Admin only)
-```http
-PUT /users/users/{user_id}/activate/?requester_id=1
-```
-
-**Response (200 OK):**
-```json
-{
-  "message": "User activated successfully"
-}
-```
-
-### **10. Deactivate User Account** (Admin only)
-```http
-PUT /users/users/{user_id}/deactivate/?requester_id=1
-```
-
-### **11. Expire Old Invitations** (Superadmin only)
-```http
-POST /users/invitations/expire/?requester_id=1
-```
-
-**Response (200 OK):**
-```json
-{
-  "message": "Expired 3 old invitations"
-}
-```
-
----
-
-## 🏗️ **Project Management Endpoints**
-
-### **Data Models**
-
-#### **Project Schema**
+### ProjectType Model
 ```json
 {
   "id": 1,
-  "name": "Downtown Office Complex",
-  "description": "15-story office building with retail space",
-  "start_date": "2024-01-15",
-  "end_date": "2025-06-30",
-  "budget": "2500000.00",
+  "category": "Residential",
+  "type_name": "Single Family Home",
+  "description": "Construction of single-family residential homes",
+  "created_at": "2025-01-15T08:00:00Z"
+}
+```
+
+### Project Model
+```json
+{
+  "id": 1,
+  "name": "Sunset Villa Construction",
+  "description": "3-bedroom luxury home construction",
+  "start_date": "2025-02-01",
+  "end_date": "2025-08-30",
+  "planned_budget": 450000.00,
+  "actual_budget": 45000.00,
   "status": "in_progress",
-  "client_name": "Metro Development Corp",
+  "client_id": 5,
   "project_manager_id": 2,
-  "created_at": "2024-01-15T10:00:00Z",
-  "updated_at": "2024-01-15T10:00:00Z"
+  "project_type_id": 1,
+  "created_at": "2025-01-15T08:00:00Z",
+  "updated_at": "2025-10-15T10:30:00Z"
 }
 ```
 
-#### **Project Status Values**
-- `planning` - Initial planning phase
+**Project Status Options:**
+- `planned` - Project in planning phase
 - `in_progress` - Active construction
-- `on_hold` - Temporarily paused
 - `completed` - Project finished
-- `cancelled` - Project cancelled
+- `on_hold` - Temporarily suspended
 
-### **12. Create Project**
-```http
-POST /projects/
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "name": "New Office Building",
-  "description": "Modern 10-story office complex",
-  "start_date": "2025-01-01",
-  "end_date": "2025-12-31",
-  "budget": "1500000.00",
-  "status": "planning",
-  "client_name": "ABC Corporation",
-  "project_manager_id": 2
-}
-```
-
-### **13. Get All Projects**
-```http
-GET /projects/?skip=0&limit=100
-```
-
-### **14. Get Project by ID**
-```http
-GET /projects/{project_id}
-```
-
-### **15. Update Project**
-```http
-PUT /projects/{project_id}
-Content-Type: application/json
-```
-
-**Request Body (Partial Update):**
-```json
-{
-  "status": "in_progress",
-  "budget": "1750000.00"
-}
-```
-
-### **16. Delete Project**
-```http
-DELETE /projects/{project_id}
-```
-
----
-
-## 🧩 **Project Components Endpoints**
-
-#### **Component Schema**
+### ProjectComponent Model
 ```json
 {
   "id": 1,
   "project_id": 1,
-  "name": "Foundation & Structure",
-  "description": "Foundation work and structural framework",
-  "budget": "800000.00",
-  "status": "in_progress",
-  "created_at": "2024-01-15T10:00:00Z"
-}
-```
-
-### **17. Get Components for Project**
-```http
-GET /projects/{project_id}/components/
-```
-
-### **18. Create Component**
-```http
-POST /components/
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "project_id": 1,
-  "name": "Electrical Systems",
-  "description": "Complete electrical installation",
-  "budget": "450000.00",
-  "status": "planned"
-}
-```
-
----
-
-## ✅ **Task Management Endpoints**
-
-#### **Task Schema**
-```json
-{
-  "id": 1,
-  "component_id": 1,
-  "name": "Site Preparation",
-  "description": "Clear and level the construction site",
-  "assigned_to": 5,
+  "name": "Foundation",
+  "description": "Concrete foundation and basement",
+  "budget": 75000.00,
   "status": "completed",
-  "priority": "high",
-  "estimated_hours": 40,
-  "actual_hours": 45,
-  "start_date": "2024-01-15",
-  "due_date": "2024-01-17",
-  "created_at": "2024-01-15T10:00:00Z"
+  "start_date": "2025-02-01",
+  "end_date": "2025-03-15",
+  "parent_id": null,
+  "created_at": "2025-01-15T08:00:00Z",
+  "updated_at": "2025-03-16T09:00:00Z"
 }
 ```
 
-#### **Task Status Values**
-- `todo` - Not started
-- `in_progress` - Currently being worked on
-- `completed` - Finished
-- `on_hold` - Temporarily paused
-- `cancelled` - Cancelled
-
-#### **Priority Values**
-- `urgent` - Highest priority
-- `high` - High priority
-- `medium` - Normal priority
-- `low` - Low priority
-
-### **19. Get Tasks for Component**
-```http
-GET /components/{component_id}/tasks/?skip=0&limit=100
-```
-
-### **20. Create Task**
-```http
-POST /tasks/
-Content-Type: application/json
-```
-
-**Request Body:**
+### Task Model
 ```json
 {
+  "id": 1,
+  "name": "Pour Foundation Concrete",
+  "description": "Pour concrete for foundation and basement walls",
+  "status": "Done",
+  "priority": "High",
+  "task_type": "Construction",
+  "budget": 25000.00,
+  "start_date": "2025-02-10",
+  "end_date": "2025-02-12",
   "component_id": 1,
-  "name": "Concrete Pour",
-  "description": "Pour and cure foundation concrete",
-  "assigned_to": 5,
-  "status": "pending",
-  "priority": "urgent",
-  "estimated_hours": 60,
-  "start_date": "2024-02-01",
-  "due_date": "2024-02-03"
-}
-```
-
-### **21. Get All Tasks for Project**
-```http
-GET /projects/{project_id}/tasks/
-```
-
-### **22. Get Project Task Summary**
-```http
-GET /projects/{project_id}/tasks/summary/
-```
-
-**Response:**
-```json
-{
   "project_id": 1,
-  "total_tasks": 15,
-  "components_with_tasks": 3,
-  "by_status": {
-    "todo": 5,
-    "in_progress": 7,
-    "completed": 3,
-    "on_hold": 0,
-    "cancelled": 0
-  },
-  "by_priority": {
-    "urgent": 2,
-    "high": 5,
-    "medium": 6,
-    "low": 2
-  },
-  "completion_rate": 20.0
+  "created_at": "2025-01-15T08:00:00Z",
+  "updated_at": "2025-02-13T16:00:00Z"
 }
 ```
+
+**Task Status Options:**
+- `To Do` - Not started
+- `In Progress` - Currently active
+- `Done` - Completed
+- `Blocked` - Cannot proceed
+- `Cancelled` - Cancelled task
+- `Backlog` - Scheduled for later
+
+**Priority Levels:**
+- `Low`, `Medium`, `High`, `Critical`
 
 ---
 
-## 💰 **Financial Management Endpoints**
+## 💰 Finance Management
 
-#### **Transaction Schema**
+### Vendor Model
 ```json
 {
   "id": 1,
-  "transaction_type": "outgoing",
-  "expense_name": "Steel Beams Purchase",
-  "description": "Structural steel beams for foundation",
-  "amount": "15000.00",
-  "transaction_date": "2024-02-15",
-  "project_id": 1,
-  "status": "approved",
-  "payment_method": "bank_transfer",
-  "vendor_supplier": "Steel Supply Co",
-  "created_at": "2024-02-15T10:00:00Z"
+  "name": "ABC Materials Supply",
+  "representative_name": "Mike Johnson",
+  "email": "mike@abcmaterials.com",
+  "phone": "+1-555-0199",
+  "address": "456 Industrial Blvd, City, State 12345",
+  "business_type": "Material Supplier",
+  "is_active": true,
+  "created_at": "2025-01-10T08:00:00Z",
+  "updated_at": "2025-01-10T08:00:00Z"
 }
 ```
 
-#### **Transaction Types**
-- `incoming` - Money received (payments from clients)
-- `outgoing` - Money spent (payments to vendors)
+**Business Types:**
+- `Material Supplier`
+- `Subcontractor`
+- `Equipment Rental`
+- `Service Provider`
 
-#### **Payment Methods**
-- `cash` - Cash payment
-- `check` - Check payment
-- `bank_transfer` - Bank transfer
-- `credit_card` - Credit card payment
-- `wire_transfer` - Wire transfer
-
-### **23. Get All Transactions**
-```http
-GET /transactions/?skip=0&limit=100
-```
-
-### **24. Create Transaction**
-```http
-POST /transactions/
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "transaction_type": "outgoing",
-  "expense_name": "Equipment Rental",
-  "description": "Excavator rental for foundation work",
-  "amount": "3500.00",
-  "transaction_date": "2024-02-20",
-  "project_id": 1,
-  "payment_method": "check",
-  "vendor_supplier": "Equipment Rental Co"
-}
-```
-
-### **25. Get Transactions by Project**
-```http
-GET /projects/{project_id}/transactions/
-```
-
-### **26. Approve Transaction**
-```http
-PUT /transactions/{transaction_id}/approve
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "approval_notes": "Approved for construction phase"
-}
-```
-
----
-
-## 📄 **Document Management Endpoints**
-
-#### **Document Schema**
+### PurchaseOrder Model
 ```json
 {
   "id": 1,
-  "name": "Blueprint_Floor1.pdf",
-  "description": "First floor architectural blueprint",
-  "storage_path": "/documents/blueprints/floor1.pdf",
-  "file_type": "pdf",
-  "file_size": 2048576,
-  "document_type": "blueprint",
-  "project_id": 1,
-  "uploaded_by_id": 1,
-  "is_public": false,
-  "created_at": "2024-01-15T10:00:00Z"
+  "po_number": "PO-2025-001",
+  "task_id": 1,
+  "vendor_id": 1,
+  "description": "Concrete and rebar for foundation",
+  "delivery_date": "2025-02-08",
+  "status": "Approved",
+  "created_by": 2,
+  "approved_by": 3,
+  "approved_date": "2025-02-05T14:30:00Z",
+  "notes": "Rush delivery required",
+  "created_at": "2025-02-03T09:00:00Z",
+  "updated_at": "2025-02-05T14:30:00Z"
 }
 ```
 
-#### **Document Types**
-- `blueprint` - Architectural blueprints
-- `contract` - Legal contracts
-- `permit` - Building permits
-- `invoice` - Financial invoices
-- `photo` - Project photos
-- `report` - Progress reports
-- `other` - Other documents
+**PO Status Options:**
+- `Draft`, `Pending Approval`, `Approved`, `Rejected`, `Delivered`, `Paid`
 
-### **27. Get All Documents**
-```http
-GET /documents/?skip=0&limit=100
+### PurchaseOrderItem Model
+```json
+{
+  "id": 1,
+  "purchase_order_id": 1,
+  "item_name": "Ready-Mix Concrete",
+  "description": "3000 PSI concrete for foundation",
+  "category": "Material",
+  "price": 125.50,
+  "created_at": "2025-02-03T09:00:00Z",
+  "updated_at": "2025-02-03T09:00:00Z"
+}
 ```
 
-### **28. Upload Document**
-```http
-POST /documents/upload
-Content-Type: multipart/form-data
+### ChangeOrder Model
+```json
+{
+  "id": 1,
+  "co_number": "CO-2025-001",
+  "task_id": 1,
+  "title": "Additional Waterproofing",
+  "description": "Add extra waterproofing membrane per client request",
+  "reason": "Client Request",
+  "status": "Approved",
+  "created_by": 2,
+  "approved_by": 3,
+  "approved_date": "2025-02-20T11:00:00Z",
+  "notes": "Client approved additional cost",
+  "created_at": "2025-02-18T10:00:00Z",
+  "updated_at": "2025-02-20T11:00:00Z"
+}
 ```
 
-**Form Data:**
-- `file`: Binary file data
-- `project_id`: Project ID (integer)
-- `document_type`: Document type (string)
-- `description`: Document description (string)
+**Change Order Reasons:**
+- `Client Request`
+- `Design Change`
+- `Site Condition`
+- `Code Requirement`
 
-### **29. Get Documents by Project**
-```http
-GET /projects/{project_id}/documents/
+### ChangeOrderItem Model
+```json
+{
+  "id": 1,
+  "change_order_id": 1,
+  "item_name": "Waterproofing Membrane",
+  "description": "Premium waterproofing system",
+  "change_type": "Addition",
+  "impact_type": "+",
+  "amount": 5500.00,
+  "created_at": "2025-02-18T10:00:00Z",
+  "updated_at": "2025-02-18T10:00:00Z"
+}
 ```
 
-### **30. Download Document**
-```http
-GET /documents/{document_id}/download
+**Change Types:**
+- `Addition`, `Deletion`, `Modification`
+
+**Impact Types:**
+- `+` - Cost increase
+- `-` - Cost decrease
+
+### Transaction Model
+```json
+{
+  "id": 1,
+  "transaction_number": "TXN-2025-001",
+  "project_id": 1,
+  "task_id": 1,
+  "transaction_type": "purchase_order",
+  "source_id": 1,
+  "source_number": "PO-2025-001",
+  "amount": 25000.00,
+  "impact_type": "+",
+  "description": "Foundation materials purchase",
+  "budget_before": 450000.00,
+  "budget_after": 475000.00,
+  "approved_by": 3,
+  "approved_date": "2025-02-05T14:30:00Z",
+  "created_at": "2025-02-05T14:30:00Z",
+  "updated_at": "2025-02-05T14:30:00Z"
+}
 ```
 
 ---
 
-## 👷 **Workforce Management Endpoints**
+## 👷 Workforce Management
 
-#### **Profession Schema**
+### Profession Model
 ```json
 {
   "id": 1,
   "name": "Electrician",
-  "description": "Electrical installation and maintenance",
+  "description": "Licensed electrical work specialist",
   "category": "Electrical",
-  "created_at": "2024-01-15T10:00:00Z"
+  "created_at": "2025-01-05T08:00:00Z",
+  "updated_at": "2025-01-05T08:00:00Z"
 }
 ```
 
-#### **Worker Schema**
+**Categories:**
+- `Electrical`, `Plumbing`, `Structural`, `Finishing`
+
+### Worker Model
 ```json
 {
   "id": 1,
-  "worker_id": "ELC001",
-  "first_name": "Tom",
-  "last_name": "Voltage",
-  "email": "tom.voltage@example.com",
-  "phone_number": "555-7001",
+  "worker_id": "WKR-001",
+  "first_name": "Carlos",
+  "last_name": "Rodriguez",
+  "phone_number": "+1-555-0156",
+  "email": "carlos.rodriguez@email.com",
   "profession_id": 1,
-  "skill_rating": "8.5",
-  "wage_rate": "45.00",
+  "wage_rate": 35.50,
   "availability": "Available",
-  "created_at": "2024-01-15T10:00:00Z"
+  "created_at": "2025-01-08T08:00:00Z",
+  "updated_at": "2025-10-15T10:30:00Z"
 }
 ```
 
-### **31. Get All Professions**
-```http
-GET /workforce/professions/
-```
+**Availability Status:**
+- `Available`, `Assigned`, `Unavailable`, `On Leave`
 
-### **32. Create Profession**
-```http
-POST /workforce/professions/
-Content-Type: application/json
-```
-
-**Request Body:**
+### WorkerProjectHistory Model
 ```json
 {
-  "name": "Concrete Specialist",
-  "description": "Concrete pouring and finishing",
-  "category": "Structural"
+  "id": 1,
+  "worker_id": 1,
+  "project_id": 1,
+  "start_date": "2025-02-15",
+  "end_date": "2025-03-20",
+  "role": "Lead Electrician",
+  "status": "Completed",
+  "created_at": "2025-02-15T08:00:00Z",
+  "updated_at": "2025-03-21T17:00:00Z"
 }
 ```
 
-### **33. Get All Workers**
-```http
-GET /workforce/workers/?skip=0&limit=100
-```
+**History Status:**
+- `Active`, `Completed`, `Terminated`
 
-### **34. Create Worker**
-```http
-POST /workforce/workers/
-Content-Type: application/json
-```
+---
 
-**Request Body:**
+## 📄 Document Management
+
+### Document Model
 ```json
 {
-  "worker_id": "CAR002",
-  "first_name": "Sarah",
-  "last_name": "Builder",
-  "email": "sarah.builder@example.com",
-  "phone_number": "555-7004",
-  "profession_id": 3,
-  "skill_rating": "9.0",
-  "wage_rate": "42.00",
+  "id": 1,
+  "name": "Foundation_Plans.pdf",
+  "description": "Detailed foundation construction plans",
+  "doc_type": "pdf",
+  "project_id": 1,
+  "component_id": 1,
+  "task_id": 1,
+  "uploaded_by": 2,
+  "created_at": "2025-01-20T09:00:00Z",
+  "updated_at": "2025-01-20T09:00:00Z"
+}
+```
+
+---
+
+# 🛠️ API Endpoints
+
+## 👤 User Management (`/users`)
+
+### Create User
+- **POST** `/users/`
+- **Request Body:**
+```json
+{
+  "first_name": "John",
+  "last_name": "Doe", 
+  "email": "john.doe@example.com",
+  "role": "project_manager",
+  "phone_number": "+1-555-0123"
+}
+```
+
+### Get All Users
+- **GET** `/users/`
+- **Query Parameters:** `skip=0`, `limit=100`
+
+### Get User by ID
+- **GET** `/users/{user_id}`
+
+### Update User
+- **PUT** `/users/{user_id}`
+- **Request Body:** (same as create, all fields optional)
+
+### Delete User
+- **DELETE** `/users/{user_id}`
+
+### Get Users by Role
+- **GET** `/users/by-role/{role}`
+
+---
+
+## 🏗️ Project Management
+
+### ProjectType Endpoints
+
+#### Create Project Type
+- **POST** `/project-types/`
+```json
+{
+  "category": "Commercial",
+  "type_name": "Office Building",
+  "description": "Multi-story office construction"
+}
+```
+
+#### Get All Project Types
+- **GET** `/project-types/`
+
+#### Get Project Type by ID
+- **GET** `/project-types/{type_id}`
+
+#### Update Project Type
+- **PUT** `/project-types/{type_id}`
+
+#### Delete Project Type
+- **DELETE** `/project-types/{type_id}`
+
+### Project Endpoints
+
+#### Create Project
+- **POST** `/projects/`
+```json
+{
+  "name": "Downtown Office Complex",
+  "description": "15-story office building",
+  "start_date": "2025-03-01",
+  "end_date": "2025-12-31",
+  "planned_budget": 2500000.00,
+  "client_id": 5,
+  "project_manager_id": 2,
+  "project_type_id": 2
+}
+```
+
+#### Get All Projects
+- **GET** `/projects/`
+- **Query Parameters:** `skip=0`, `limit=100`
+
+#### Get Project by ID
+- **GET** `/projects/{project_id}`
+
+#### Update Project
+- **PUT** `/projects/{project_id}`
+
+#### Delete Project
+- **DELETE** `/projects/{project_id}`
+
+#### Get Projects by Client
+- **GET** `/projects/by-client/{client_id}`
+
+#### Get Projects by Manager
+- **GET** `/projects/by-manager/{manager_id}`
+
+#### Get Projects by Type
+- **GET** `/projects/by-type/{type_id}`
+
+### ProjectComponent Endpoints
+
+#### Create Component
+- **POST** `/project-components/`
+```json
+{
+  "project_id": 1,
+  "name": "Electrical System",
+  "description": "Complete electrical installation",
+  "budget": 85000.00,
+  "start_date": "2025-04-01",
+  "end_date": "2025-06-15",
+  "parent_id": null
+}
+```
+
+#### Get All Components
+- **GET** `/project-components/`
+
+#### Get Component by ID
+- **GET** `/project-components/{component_id}`
+
+#### Update Component
+- **PUT** `/project-components/{component_id}`
+
+#### Delete Component
+- **DELETE** `/project-components/{component_id}`
+
+#### Get Components by Project
+- **GET** `/projects/{project_id}/components`
+
+### Task Endpoints
+
+#### Create Task
+- **POST** `/tasks/`
+```json
+{
+  "name": "Install Main Electrical Panel",
+  "description": "Install and wire main electrical distribution panel",
+  "status": "To Do",
+  "priority": "High",
+  "task_type": "Construction",
+  "budget": 8500.00,
+  "start_date": "2025-04-05",
+  "end_date": "2025-04-08",
+  "component_id": 2,
+  "project_id": 1
+}
+```
+
+#### Get All Tasks
+- **GET** `/tasks/`
+
+#### Get Task by ID
+- **GET** `/tasks/{task_id}`
+
+#### Update Task
+- **PUT** `/tasks/{task_id}`
+
+#### Delete Task
+- **DELETE** `/tasks/{task_id}`
+
+#### Get Tasks by Project
+- **GET** `/projects/{project_id}/tasks`
+
+#### Get Tasks by Component
+- **GET** `/project-components/{component_id}/tasks`
+
+---
+
+## 💰 Finance Management (`/finance`)
+
+### Vendor Endpoints
+
+#### Create Vendor
+- **POST** `/finance/vendors/`
+```json
+{
+  "name": "Elite Construction Supplies",
+  "representative_name": "Sarah Wilson",
+  "email": "sarah@elitecsupply.com",
+  "phone": "+1-555-0177",
+  "address": "789 Supply St, City, State 12345",
+  "business_type": "Material Supplier"
+}
+```
+
+#### Get All Vendors
+- **GET** `/finance/vendors/`
+
+#### Get Vendor by ID
+- **GET** `/finance/vendors/{vendor_id}`
+
+#### Get Active Vendors
+- **GET** `/finance/vendors/active`
+
+#### Update Vendor
+- **PUT** `/finance/vendors/{vendor_id}`
+
+#### Delete Vendor
+- **DELETE** `/finance/vendors/{vendor_id}`
+
+### Purchase Order Endpoints
+
+#### Create Purchase Order
+- **POST** `/finance/purchase-orders/`
+```json
+{
+  "po_number": "PO-2025-002",
+  "task_id": 2,
+  "vendor_id": 1,
+  "description": "Electrical supplies for main panel installation",
+  "delivery_date": "2025-04-03",
+  "created_by": 2,
+  "notes": "Coordinate with project manager"
+}
+```
+
+#### Get All Purchase Orders
+- **GET** `/finance/purchase-orders/`
+
+#### Get Purchase Order by ID
+- **GET** `/finance/purchase-orders/{po_id}`
+
+#### Get Purchase Orders by Status
+- **GET** `/finance/purchase-orders/by-status/{status}`
+
+#### Get Purchase Orders by Task
+- **GET** `/finance/purchase-orders/by-task/{task_id}`
+
+#### Update Purchase Order
+- **PUT** `/finance/purchase-orders/{po_id}`
+
+#### Delete Purchase Order
+- **DELETE** `/finance/purchase-orders/{po_id}`
+
+#### Get Purchase Order Items
+- **GET** `/finance/purchase-orders/{po_id}/items`
+
+### Purchase Order Item Endpoints
+
+#### Create Purchase Order Item
+- **POST** `/finance/purchase-order-items/`
+```json
+{
+  "purchase_order_id": 2,
+  "item_name": "200A Main Breaker Panel",
+  "description": "Square D 200-amp main electrical panel",
+  "category": "Material",
+  "price": 485.00
+}
+```
+
+#### Get Purchase Order Item by ID
+- **GET** `/finance/purchase-order-items/{item_id}`
+
+#### Update Purchase Order Item
+- **PUT** `/finance/purchase-order-items/{item_id}`
+
+#### Delete Purchase Order Item
+- **DELETE** `/finance/purchase-order-items/{item_id}`
+
+### Change Order Endpoints
+
+#### Create Change Order
+- **POST** `/finance/change-orders/`
+```json
+{
+  "co_number": "CO-2025-002",
+  "task_id": 2,
+  "title": "Upgrade to Smart Panel",
+  "description": "Client requested upgrade to smart electrical panel with monitoring",
+  "reason": "Client Request",
+  "created_by": 2,
+  "notes": "Client will pay additional cost"
+}
+```
+
+#### Get All Change Orders
+- **GET** `/finance/change-orders/`
+
+#### Get Change Order by ID
+- **GET** `/finance/change-orders/{co_id}`
+
+#### Get Change Orders by Status
+- **GET** `/finance/change-orders/by-status/{status}`
+
+#### Get Change Orders by Task
+- **GET** `/finance/change-orders/by-task/{task_id}`
+
+#### Update Change Order
+- **PUT** `/finance/change-orders/{co_id}`
+
+#### Delete Change Order
+- **DELETE** `/finance/change-orders/{co_id}`
+
+#### Get Change Order Items
+- **GET** `/finance/change-orders/{co_id}/items`
+
+### Change Order Item Endpoints
+
+#### Create Change Order Item
+- **POST** `/finance/change-order-items/`
+```json
+{
+  "change_order_id": 2,
+  "item_name": "Smart Panel Upgrade",
+  "description": "Upgrade from standard to smart monitoring panel",
+  "change_type": "Modification",
+  "impact_type": "+",
+  "amount": 1200.00
+}
+```
+
+#### Get Change Order Item by ID
+- **GET** `/finance/change-order-items/{item_id}`
+
+#### Update Change Order Item
+- **PUT** `/finance/change-order-items/{item_id}`
+
+#### Delete Change Order Item
+- **DELETE** `/finance/change-order-items/{item_id}`
+
+### Transaction Endpoints
+
+#### Create Transaction
+- **POST** `/finance/transactions/`
+```json
+{
+  "transaction_number": "TXN-2025-002",
+  "project_id": 1,
+  "task_id": 2,
+  "transaction_type": "change_order",
+  "source_id": 2,
+  "source_number": "CO-2025-002",
+  "amount": 1200.00,
+  "impact_type": "+",
+  "description": "Smart panel upgrade approved",
+  "budget_before": 475000.00,
+  "budget_after": 476200.00,
+  "approved_by": 3,
+  "approved_date": "2025-04-01T15:00:00Z"
+}
+```
+
+#### Get All Transactions
+- **GET** `/finance/transactions/`
+
+#### Get Transaction by ID
+- **GET** `/finance/transactions/{transaction_id}`
+
+#### Get Transactions by Project
+- **GET** `/finance/transactions/by-project/{project_id}`
+
+#### Get Transactions by Task
+- **GET** `/finance/transactions/by-task/{task_id}`
+
+#### Get Transactions by Type
+- **GET** `/finance/transactions/by-type/{transaction_type}`
+
+---
+
+## 👷 Workforce Management (`/workforce`)
+
+### Profession Endpoints
+
+#### Create Profession
+- **POST** `/workforce/professions/`
+```json
+{
+  "name": "HVAC Technician",
+  "description": "Heating, ventilation, and air conditioning specialist",
+  "category": "Mechanical"
+}
+```
+
+#### Get All Professions
+- **GET** `/workforce/professions/`
+
+#### Get Profession by ID
+- **GET** `/workforce/professions/{profession_id}`
+
+#### Update Profession
+- **PUT** `/workforce/professions/{profession_id}`
+
+#### Delete Profession
+- **DELETE** `/workforce/professions/{profession_id}`
+
+### Worker Endpoints
+
+#### Create Worker
+- **POST** `/workforce/workers/`
+```json
+{
+  "worker_id": "WKR-002",
+  "first_name": "Maria",
+  "last_name": "Garcia",
+  "phone_number": "+1-555-0188",
+  "email": "maria.garcia@email.com",
+  "profession_id": 2,
+  "wage_rate": 42.75,
   "availability": "Available"
 }
 ```
 
----
+#### Get All Workers
+- **GET** `/workforce/workers/`
 
-## 📊 **Response Formats**
+#### Get Worker by ID
+- **GET** `/workforce/workers/{worker_id}`
 
-### **Success Response Format**
+#### Get Workers by Profession
+- **GET** `/workforce/workers/by-profession/{profession_id}`
+
+#### Get Workers by Availability
+- **GET** `/workforce/workers/by-availability/{availability}`
+
+#### Get Available Workers
+- **GET** `/workforce/workers/available`
+
+#### Update Worker
+- **PUT** `/workforce/workers/{worker_id}`
+
+#### Delete Worker
+- **DELETE** `/workforce/workers/{worker_id}`
+
+### Worker Project History Endpoints
+
+#### Create Worker Project History
+- **POST** `/workforce/worker-history/`
 ```json
 {
-  "id": 1,
-  "field1": "value1",
-  "field2": "value2",
-  "created_at": "2025-10-15T10:00:00Z",
-  "updated_at": "2025-10-15T10:00:00Z"
+  "worker_id": 2,
+  "project_id": 1,
+  "start_date": "2025-04-01",
+  "end_date": null,
+  "role": "HVAC Lead Technician",
+  "status": "Active"
 }
 ```
 
-### **Error Response Format**
+#### Get Worker Project History by ID
+- **GET** `/workforce/worker-history/{history_id}`
+
+#### Get Worker's History
+- **GET** `/workforce/workers/{worker_id}/history`
+
+#### Get Project's Worker History
+- **GET** `/workforce/projects/{project_id}/worker-history`
+
+#### Update Worker Project History
+- **PUT** `/workforce/worker-history/{history_id}`
+
+#### Delete Worker Project History
+- **DELETE** `/workforce/worker-history/{history_id}`
+
+---
+
+## 📄 Document Management (`/documents`)
+
+### Document Endpoints
+
+#### Create Document
+- **POST** `/documents/`
 ```json
 {
-  "detail": "Error description",
-  "status_code": 400,
-  "type": "validation_error"
+  "name": "Electrical_Permit.pdf",
+  "description": "City electrical permit for project",
+  "doc_type": "pdf",
+  "project_id": 1,
+  "component_id": 2,
+  "task_id": 2,
+  "uploaded_by": 2
 }
 ```
 
-### **List Response Format**
-```json
-[
-  {
-    "id": 1,
-    "field1": "value1"
-  },
-  {
-    "id": 2,
-    "field1": "value2"
-  }
-]
-```
+#### Get All Documents
+- **GET** `/documents/`
 
-### **Validation Error Format**
+#### Get Document by ID
+- **GET** `/documents/{document_id}`
+
+#### Update Document
+- **PUT** `/documents/{document_id}`
+
+#### Delete Document
+- **DELETE** `/documents/{document_id}`
+
+#### Get Documents by Project
+- **GET** `/documents/by-project/{project_id}`
+
+#### Get Documents by Component
+- **GET** `/documents/by-component/{component_id}`
+
+#### Get Documents by Task
+- **GET** `/documents/by-task/{task_id}`
+
+---
+
+# 📋 HTTP Status Codes
+
+## Success Codes
+- **200 OK** - Successful GET, PUT requests
+- **201 Created** - Successful POST requests
+- **204 No Content** - Successful DELETE requests
+
+## Error Codes
+- **400 Bad Request** - Invalid request data
+- **401 Unauthorized** - Authentication required
+- **403 Forbidden** - Insufficient permissions
+- **404 Not Found** - Resource not found
+- **422 Unprocessable Entity** - Validation errors
+- **500 Internal Server Error** - Server error
+
+## Error Response Format
 ```json
 {
-  "detail": [
-    {
-      "loc": ["body", "password"],
-      "msg": "Password must contain at least one uppercase letter",
-      "type": "value_error"
-    }
-  ]
+  "detail": "Error message describing what went wrong"
 }
 ```
 
 ---
 
-## 🔄 **HTTP Status Codes**
+# 🔧 Development Notes
 
-| Code | Meaning | Usage |
-|------|---------|--------|
-| **200** | OK | Successful GET, PUT requests |
-| **201** | Created | Successful POST requests |
-| **204** | No Content | Successful DELETE requests |
-| **400** | Bad Request | Invalid request data |
-| **401** | Unauthorized | Authentication required |
-| **403** | Forbidden | Insufficient permissions |
-| **404** | Not Found | Resource not found |
-| **422** | Unprocessable Entity | Validation errors |
-| **500** | Internal Server Error | Server errors |
+## Authentication
+- Currently, most endpoints don't require authentication
+- Future implementation will include JWT token-based authentication
+- Role-based access control will be enforced
 
----
+## Pagination
+- Default pagination: `skip=0`, `limit=100`
+- Maximum limit: 1000 items per request
 
-## 🧪 **Testing Examples**
+## Filtering
+- Many GET endpoints support filtering by related entities
+- Use specific filter endpoints for better performance
 
-### **Frontend Authentication Flow**
+## Data Validation
+- All POST/PUT requests validate data using Pydantic schemas
+- Foreign key relationships are validated
+- Date ranges are validated (start_date < end_date)
 
-**1. Login User:**
-```javascript
-const login = async (email, password) => {
-  const response = await fetch('/users/login/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ email, password })
-  });
-  
-  if (response.ok) {
-    const data = await response.json();
-    // Store user data and redirect to navigation_route
-    localStorage.setItem('user', JSON.stringify(data.user));
-    window.location.href = data.navigation_route;
-  }
-};
-```
-
-**2. Send Invitation:**
-```javascript
-const sendInvitation = async (invitationData, inviterId) => {
-  const response = await fetch('/users/invite/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      invitation: invitationData,
-      inviter_id: inviterId
-    })
-  });
-  
-  return await response.json();
-};
-```
-
-**3. Complete Signup:**
-```javascript
-const completeSignup = async (signupData) => {
-  const response = await fetch('/users/signup/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(signupData)
-  });
-  
-  if (response.ok) {
-    // Redirect to login page
-    window.location.href = '/login';
-  }
-};
-```
+## Database Relationships
+- All models support proper cascade operations
+- Foreign key constraints are enforced
+- Circular dependencies are handled with string references
 
 ---
 
-## 🚀 **Getting Started**
-
-### **1. Start the Backend Server**
-```bash
-cd backend
-python -m uvicorn app.main:app --reload --port 8000
-```
-
-### **2. Create Initial Superuser**
-```bash
-python create_superuser_with_password.py
-```
-
-### **3. Test API Endpoints**
-- **Interactive Docs:** `http://localhost:8000/docs`
-- **Health Check:** `http://localhost:8000/health`
-- **Root Endpoint:** `http://localhost:8000/`
-
-### **4. Database Setup**
-```bash
-python setup_database.py
-```
-
----
-
-## 📝 **Important Notes for Frontend**
-
-1. **Password Validation:** Enforce password rules on frontend for better UX
-2. **Role-based UI:** Show/hide UI elements based on user role
-3. **Error Handling:** Handle all HTTP status codes appropriately
-4. **Token Expiry:** Invitation tokens expire in 7 days
-5. **Navigation:** Use `navigation_route` from login response for role-based routing
-6. **Timestamps:** All dates are in ISO 8601 format (UTC)
-7. **Money Fields:** All amounts are strings with 2 decimal places
-8. **File Uploads:** Use `multipart/form-data` for document uploads
-
----
-
-**Server Status:** ✅ Running at `http://localhost:8000`  
-**Interactive Documentation:** `http://localhost:8000/docs`  
-**Health Endpoint:** `http://localhost:8000/health`
+*Last Updated: October 16, 2025*
+*Version: 1.0*

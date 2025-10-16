@@ -28,11 +28,13 @@ class Project(Base):
     status = Column(String(50), default='planned')  # planned, in_progress, completed, on_hold
     client_id = Column(Integer, ForeignKey("users.id"))  # Client as FK to User
     project_manager_id = Column(Integer, ForeignKey("users.id"))  # PM as FK to User
+    accountant_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Accountant as FK to User
     project_type_id = Column(Integer, ForeignKey("project_types.id"))  # ProjectType as FK
 
     # Relationships
     client = relationship("User", foreign_keys=[client_id])
     project_manager = relationship("User", foreign_keys=[project_manager_id], back_populates="managed_projects")
+    accountant = relationship("User", foreign_keys=[accountant_id])
     project_type = relationship("ProjectType", back_populates="projects")
     components = relationship("ProjectComponent", back_populates="project", cascade="all, delete-orphan")
     transactions = relationship("Transaction", back_populates="project")

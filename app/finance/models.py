@@ -153,6 +153,7 @@ class Transaction(Base):
     budget_after = Column(Numeric(15, 2), nullable=False)   # Actual budget after this transaction
     
     # Approval Details
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     approved_date = Column(DateTime(timezone=True), nullable=False)
     
@@ -162,4 +163,5 @@ class Transaction(Base):
     # Relationships
     project = relationship("Project", back_populates="transactions")
     task = relationship("Task")
-    approver = relationship("User")
+    creator = relationship("User", foreign_keys=[created_by], back_populates="created_transactions")
+    approver = relationship("User", foreign_keys=[approved_by], back_populates="approved_transactions")
