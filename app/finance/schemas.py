@@ -1,3 +1,26 @@
+# Basic ChangeOrder schema for endpoints that do not require extended fields
+
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
+
+class ChangeOrder(BaseModel):
+    id: int
+    co_number: str
+    task_id: int
+    title: str
+    description: str
+    reason: Optional[str] = None
+    status: str
+    notes: Optional[str] = None
+    created_by: int
+    approved_by: Optional[int] = None
+    approved_date: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
 from pydantic import BaseModel
 from datetime import datetime, date
 from typing import Optional, List
@@ -128,17 +151,29 @@ class ChangeOrderUpdate(BaseModel):
     approved_date: Optional[datetime] = None
     notes: Optional[str] = None
 
-class ChangeOrder(ChangeOrderBase):
+
+# Extended ChangeOrder response with project/component/PM info
+class ChangeOrderExtended(BaseModel):
     id: int
     co_number: str
+    task_id: int
+    title: str
+    description: str
+    reason: Optional[str] = None
+    status: str
+    notes: Optional[str] = None
     created_by: int
     approved_by: Optional[int] = None
     approved_date: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # Extra fields
+    project_name: Optional[str] = None
+    component_name: Optional[str] = None
+    pm_name: Optional[str] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # ===============================
 # CHANGE ORDER ITEM SCHEMAS

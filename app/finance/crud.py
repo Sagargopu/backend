@@ -1,4 +1,13 @@
 from sqlalchemy.orm import Session
+# CRUD: Get all transactions by component ID
+def get_transactions_by_component(db: Session, component_id: int):
+    from app.projects.models import Task
+    # Find all tasks for this component (returns list of tuples)
+    task_id_rows = db.query(Task.id).filter(Task.component_id == component_id).all()
+    task_ids = [row[0] if isinstance(row, tuple) else row.id for row in task_id_rows]
+    if not task_ids:
+        return []
+    return db.query(models.Transaction).filter(models.Transaction.task_id.in_(task_ids)).all()
 from typing import List, Optional
 from datetime import datetime
 
@@ -128,12 +137,71 @@ def update_purchase_order(db: Session, po_id: int, po_update: schemas.PurchaseOr
     """Update purchase order"""
     db_po = db.query(models.PurchaseOrder).filter(models.PurchaseOrder.id == po_id).first()
     if db_po:
+        old_status = db_po.status if not hasattr(db_po.status, 'compare') else db_po.status.value
         update_data = po_update.dict(exclude_unset=True)
         for key, value in update_data.items():
             setattr(db_po, key, value)
         db.commit()
         db.refresh(db_po)
+        # If status changed to 'Approved', create transaction
+        new_status = db_po.status if not hasattr(db_po.status, 'compare') else db_po.status.value
+        if str(old_status) != 'Approved' and str(new_status) == 'Approved':
+            create_purchase_order_transaction(db, db_po)
     return db_po
+# Helper: Create transaction when purchase order is approved
+def create_purchase_order_transaction(db: Session, purchase_order):
+    from datetime import datetime
+    from decimal import Decimal
+    from app.projects.models import Task
+
+    # Calculate total PO amount (sum of all items)
+    items = db.query(models.PurchaseOrderItem).filter(models.PurchaseOrderItem.purchase_order_id == purchase_order.id).all()
+    def get_price(item):
+        # SQLAlchemy may return a column, so use .__float__ if available
+        try:
+            return float(item.price)
+        except Exception:
+            return float(item.price if hasattr(item.price, '__float__') else 0.0)
+    total_amount = sum(get_price(item) if item.price is not None else 0.0 for item in items)
+    if total_amount == 0:
+        return None
+
+    # Get task and project
+    task = db.query(Task).filter(Task.id == purchase_order.task_id).first()
+    if not task:
+        return None
+    try:
+        current_budget = float(str(task.budget)) if task.budget is not None else 0.0
+    except Exception:
+        current_budget = 0.0
+    new_budget = current_budget - total_amount
+
+    # Generate transaction number
+    transaction_number = generate_transaction_number(db)
+
+    # Create transaction record
+    transaction = models.Transaction(
+        transaction_number=transaction_number,
+        project_id=task.project_id,
+        task_id=purchase_order.task_id,
+        transaction_type='purchase_order',
+        source_id=purchase_order.id,
+        source_number=purchase_order.po_number,
+        amount=Decimal(str(total_amount)),
+        impact_type='-',
+        description=f"Purchase Order: {purchase_order.description}",
+        budget_before=Decimal(str(current_budget)),
+        budget_after=Decimal(str(new_budget)),
+        created_by=purchase_order.created_by,
+        approved_by=purchase_order.approved_by,
+        approved_date=purchase_order.approved_date or datetime.now()
+    )
+    db.add(transaction)
+    # Update task budget
+    setattr(task, 'budget', Decimal(str(new_budget)))
+    db.commit()
+    db.refresh(transaction)
+    return transaction
 
 def delete_purchase_order(db: Session, po_id: int):
     """Delete purchase order"""

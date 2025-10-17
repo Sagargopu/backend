@@ -1,8 +1,23 @@
+# Endpoint: Get all transactions by component ID
+from fastapi import APIRouter, Depends
+router = APIRouter()
+from sqlalchemy.orm import Session
+from typing import List
+from . import crud, schemas
+from .dependencies import get_db
+
+@router.get("/transactions/by-component/{component_id}", response_model=List[schemas.Transaction])
+def read_transactions_by_component(component_id: int, db: Session = Depends(get_db)):
+    """Get transactions by component"""
+    transactions = crud.get_transactions_by_component(db, component_id=component_id)
+    return transactions
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from . import crud, models, schemas
+from app.projects import crud as project_crud, models as project_models
+from app.users import models as user_models
 from app.database import get_db
 
 router = APIRouter()
@@ -169,49 +184,309 @@ def create_change_order(co: schemas.ChangeOrderCreate, db: Session = Depends(get
     """Create a new change order"""
     return crud.create_change_order(db=db, co=co)
 
-@router.get("/change-orders/", response_model=List[schemas.ChangeOrder])
-def read_change_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """Get all change orders"""
-    cos = crud.get_change_orders(db, skip=skip, limit=limit)
-    return cos
 
-@router.get("/change-orders/{co_id}", response_model=schemas.ChangeOrder)
+@router.get("/change-orders/", response_model=List[schemas.ChangeOrderExtended])
+def read_change_orders(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all change orders with project/component/PM info"""
+    cos = crud.get_change_orders(db, skip=skip, limit=limit)
+    results = []
+    for co in cos:
+        # Get related task
+        task = db.query(project_models.Task).filter(project_models.Task.id == co.task_id).first()
+        project_name = None
+        component_name = None
+        pm_name = None
+        if task:
+            # Project
+            project = db.query(project_models.Project).filter(project_models.Project.id == task.project_id).first()
+            if project:
+                project_name = getattr(project, "name", None)
+                pm = db.query(user_models.User).filter(user_models.User.id == project.project_manager_id).first()
+                if pm:
+                    pm_name = f"{getattr(pm, 'first_name', '')} {getattr(pm, 'last_name', '')}".strip()
+            # Component
+            if getattr(task, "component_id", None):
+                component = db.query(project_models.ProjectComponent).filter(project_models.ProjectComponent.id == task.component_id).first()
+                if component:
+                    component_name = getattr(component, "name", None)
+        # Build extended response
+        ext = schemas.ChangeOrderExtended(
+            id=co.__dict__["id"],
+            co_number=co.__dict__["co_number"],
+            task_id=co.__dict__["task_id"],
+            title=co.__dict__["title"],
+            description=co.__dict__["description"],
+            reason=co.__dict__["reason"],
+            status=co.__dict__["status"],
+            notes=co.__dict__["notes"],
+            created_by=co.__dict__["created_by"],
+            approved_by=co.__dict__["approved_by"],
+            approved_date=co.__dict__["approved_date"],
+            created_at=co.__dict__["created_at"],
+            updated_at=co.__dict__["updated_at"],
+            project_name=project_name,
+            component_name=component_name,
+            pm_name=pm_name
+        )
+        results.append(ext)
+    return results
+
+
+@router.get("/change-orders/{co_id}", response_model=schemas.ChangeOrderExtended)
 def read_change_order(co_id: int, db: Session = Depends(get_db)):
-    """Get change order by ID"""
+    """Get change order by ID with project/component/PM info"""
     co = crud.get_change_order(db, co_id=co_id)
     if co is None:
+        print(f"[DEBUG] ChangeOrder with id={co_id} not found.")
         raise HTTPException(status_code=404, detail="Change order not found")
-    return co
+    # Get related task
+    task = db.query(project_models.Task).filter(project_models.Task.id == co.task_id).first()
+    print(f"[DEBUG] Lookup Task for ChangeOrder id={co_id}, task_id={co.task_id}: {task}")
+    project_name = None
+    component_name = None
+    pm_name = None
+    if task:
+        project = db.query(project_models.Project).filter(project_models.Project.id == task.project_id).first()
+        print(f"[DEBUG] Lookup Project for Task id={task.id}, project_id={getattr(task, 'project_id', None)}: {project}")
+        if project:
+            project_name = getattr(project, "name", None)
+            pm = db.query(user_models.User).filter(user_models.User.id == project.project_manager_id).first()
+            print(f"[DEBUG] Lookup PM for Project id={project.id}, pm_id={getattr(project, 'project_manager_id', None)}: {pm}")
+            if pm:
+                pm_name = f"{getattr(pm, 'first_name', '')} {getattr(pm, 'last_name', '')}".strip()
+        if getattr(task, "component_id", None):
+            component = db.query(project_models.ProjectComponent).filter(project_models.ProjectComponent.id == task.component_id).first()
+            print(f"[DEBUG] Lookup Component for Task id={task.id}, component_id={getattr(task, 'component_id', None)}: {component}")
+            if component:
+                component_name = getattr(component, "name", None)
+    return schemas.ChangeOrderExtended(
+        id=co.__dict__["id"],
+        co_number=co.__dict__["co_number"],
+        task_id=co.__dict__["task_id"],
+        title=co.__dict__["title"],
+        description=co.__dict__["description"],
+        reason=co.__dict__["reason"],
+        status=co.__dict__["status"],
+        notes=co.__dict__["notes"],
+        created_by=co.__dict__["created_by"],
+        approved_by=co.__dict__["approved_by"],
+        approved_date=co.__dict__["approved_date"],
+        created_at=co.__dict__["created_at"],
+        updated_at=co.__dict__["updated_at"],
+        project_name=project_name,
+        component_name=component_name,
+        pm_name=pm_name
+    )
 
-@router.get("/change-orders/by-status/{status}", response_model=List[schemas.ChangeOrder])
+@router.get("/change-orders/by-status/{status}", response_model=List[schemas.ChangeOrderExtended])
 def read_change_orders_by_status(status: str, db: Session = Depends(get_db)):
     """Get change orders by status"""
     cos = crud.get_change_orders_by_status(db, status=status)
-    return cos
+    results = []
+    for co in cos:
+        task = db.query(project_models.Task).filter(project_models.Task.id == co.task_id).first()
+        project_name = None
+        component_name = None
+        pm_name = None
+        if task:
+            project = db.query(project_models.Project).filter(project_models.Project.id == task.project_id).first()
+            if project:
+                project_name = getattr(project, "name", None)
+                pm = db.query(user_models.User).filter(user_models.User.id == project.project_manager_id).first()
+                if pm:
+                    pm_name = f"{getattr(pm, 'first_name', '')} {getattr(pm, 'last_name', '')}".strip()
+            if getattr(task, "component_id", None):
+                component = db.query(project_models.ProjectComponent).filter(project_models.ProjectComponent.id == task.component_id).first()
+                if component:
+                    component_name = getattr(component, "name", None)
+        ext = schemas.ChangeOrderExtended(
+            id=co.__dict__["id"],
+            co_number=co.__dict__["co_number"],
+            task_id=co.__dict__["task_id"],
+            title=co.__dict__["title"],
+            description=co.__dict__["description"],
+            reason=co.__dict__["reason"],
+            status=co.__dict__["status"],
+            notes=co.__dict__["notes"],
+            created_by=co.__dict__["created_by"],
+            approved_by=co.__dict__["approved_by"],
+            approved_date=co.__dict__["approved_date"],
+            created_at=co.__dict__["created_at"],
+            updated_at=co.__dict__["updated_at"],
+            project_name=project_name,
+            component_name=component_name,
+            pm_name=pm_name
+        )
+        results.append(ext)
+    return results
 
-@router.get("/change-orders/by-task/{task_id}", response_model=List[schemas.ChangeOrder])
+@router.get("/change-orders/by-task/{task_id}", response_model=List[schemas.ChangeOrderExtended])
 def read_change_orders_by_task(task_id: int, db: Session = Depends(get_db)):
     """Get change orders by task"""
     cos = crud.get_change_orders_by_task(db, task_id=task_id)
-    return cos
+    results = []
+    for co in cos:
+        task = db.query(project_models.Task).filter(project_models.Task.id == co.task_id).first()
+        project_name = None
+        component_name = None
+        pm_name = None
+        if task:
+            project = db.query(project_models.Project).filter(project_models.Project.id == task.project_id).first()
+            if project:
+                project_name = getattr(project, "name", None)
+                pm = db.query(user_models.User).filter(user_models.User.id == project.project_manager_id).first()
+                if pm:
+                    pm_name = f"{getattr(pm, 'first_name', '')} {getattr(pm, 'last_name', '')}".strip()
+            if getattr(task, "component_id", None):
+                component = db.query(project_models.ProjectComponent).filter(project_models.ProjectComponent.id == task.component_id).first()
+                if component:
+                    component_name = getattr(component, "name", None)
+        ext = schemas.ChangeOrderExtended(
+            id=co.__dict__["id"],
+            co_number=co.__dict__["co_number"],
+            task_id=co.__dict__["task_id"],
+            title=co.__dict__["title"],
+            description=co.__dict__["description"],
+            reason=co.__dict__["reason"],
+            status=co.__dict__["status"],
+            notes=co.__dict__["notes"],
+            created_by=co.__dict__["created_by"],
+            approved_by=co.__dict__["approved_by"],
+            approved_date=co.__dict__["approved_date"],
+            created_at=co.__dict__["created_at"],
+            updated_at=co.__dict__["updated_at"],
+            project_name=project_name,
+            component_name=component_name,
+            pm_name=pm_name
+        )
+        results.append(ext)
+    return results
 
-@router.get("/change-orders/by-component/{component_id}", response_model=List[schemas.ChangeOrder])
+@router.get("/change-orders/by-component/{component_id}", response_model=List[schemas.ChangeOrderExtended])
 def read_change_orders_by_component(component_id: int, db: Session = Depends(get_db)):
     """Get change orders by component"""
     cos = crud.get_change_orders_by_component(db, component_id=component_id)
-    return cos
+    results = []
+    for co in cos:
+        task = db.query(project_models.Task).filter(project_models.Task.id == co.task_id).first()
+        project_name = None
+        component_name = None
+        pm_name = None
+        if task:
+            project = db.query(project_models.Project).filter(project_models.Project.id == task.project_id).first()
+            if project:
+                project_name = getattr(project, "name", None)
+                pm = db.query(user_models.User).filter(user_models.User.id == project.project_manager_id).first()
+                if pm:
+                    pm_name = f"{getattr(pm, 'first_name', '')} {getattr(pm, 'last_name', '')}".strip()
+            if getattr(task, "component_id", None):
+                component = db.query(project_models.ProjectComponent).filter(project_models.ProjectComponent.id == task.component_id).first()
+                if component:
+                    component_name = getattr(component, "name", None)
+        ext = schemas.ChangeOrderExtended(
+            id=co.__dict__["id"],
+            co_number=co.__dict__["co_number"],
+            task_id=co.__dict__["task_id"],
+            title=co.__dict__["title"],
+            description=co.__dict__["description"],
+            reason=co.__dict__["reason"],
+            status=co.__dict__["status"],
+            notes=co.__dict__["notes"],
+            created_by=co.__dict__["created_by"],
+            approved_by=co.__dict__["approved_by"],
+            approved_date=co.__dict__["approved_date"],
+            created_at=co.__dict__["created_at"],
+            updated_at=co.__dict__["updated_at"],
+            project_name=project_name,
+            component_name=component_name,
+            pm_name=pm_name
+        )
+        results.append(ext)
+    return results
 
-@router.get("/change-orders/by-creator/{creator_id}", response_model=List[schemas.ChangeOrder])
+@router.get("/change-orders/by-creator/{creator_id}", response_model=List[schemas.ChangeOrderExtended])
 def read_change_orders_by_creator(creator_id: int, db: Session = Depends(get_db)):
     """Get change orders by creator (created_by)"""
     cos = crud.get_change_orders_by_creator(db, creator_id=creator_id)
-    return cos
+    results = []
+    for co in cos:
+        task = db.query(project_models.Task).filter(project_models.Task.id == co.task_id).first()
+        project_name = None
+        component_name = None
+        pm_name = None
+        if task:
+            project = db.query(project_models.Project).filter(project_models.Project.id == task.project_id).first()
+            if project:
+                project_name = getattr(project, "name", None)
+                pm = db.query(user_models.User).filter(user_models.User.id == project.project_manager_id).first()
+                if pm:
+                    pm_name = f"{getattr(pm, 'first_name', '')} {getattr(pm, 'last_name', '')}".strip()
+            if getattr(task, "component_id", None):
+                component = db.query(project_models.ProjectComponent).filter(project_models.ProjectComponent.id == task.component_id).first()
+                if component:
+                    component_name = getattr(component, "name", None)
+        ext = schemas.ChangeOrderExtended(
+            id=co.__dict__["id"],
+            co_number=co.__dict__["co_number"],
+            task_id=co.__dict__["task_id"],
+            title=co.__dict__["title"],
+            description=co.__dict__["description"],
+            reason=co.__dict__["reason"],
+            status=co.__dict__["status"],
+            notes=co.__dict__["notes"],
+            created_by=co.__dict__["created_by"],
+            approved_by=co.__dict__["approved_by"],
+            approved_date=co.__dict__["approved_date"],
+            created_at=co.__dict__["created_at"],
+            updated_at=co.__dict__["updated_at"],
+            project_name=project_name,
+            component_name=component_name,
+            pm_name=pm_name
+        )
+        results.append(ext)
+    return results
 
-@router.get("/change-orders/by-approver/{approver_id}", response_model=List[schemas.ChangeOrder])
+@router.get("/change-orders/by-approver/{approver_id}", response_model=List[schemas.ChangeOrderExtended])
 def read_change_orders_by_approver(approver_id: int, db: Session = Depends(get_db)):
     """Get change orders by approver (approved_by)"""
     cos = crud.get_change_orders_by_approver(db, approver_id=approver_id)
-    return cos
+    results = []
+    for co in cos:
+        task = db.query(project_models.Task).filter(project_models.Task.id == co.task_id).first()
+        project_name = None
+        component_name = None
+        pm_name = None
+        if task:
+            project = db.query(project_models.Project).filter(project_models.Project.id == task.project_id).first()
+            if project:
+                project_name = getattr(project, "name", None)
+                pm = db.query(user_models.User).filter(user_models.User.id == project.project_manager_id).first()
+                if pm:
+                    pm_name = f"{getattr(pm, 'first_name', '')} {getattr(pm, 'last_name', '')}".strip()
+            if getattr(task, "component_id", None):
+                component = db.query(project_models.ProjectComponent).filter(project_models.ProjectComponent.id == task.component_id).first()
+                if component:
+                    component_name = getattr(component, "name", None)
+        ext = schemas.ChangeOrderExtended(
+            id=co.__dict__["id"],
+            co_number=co.__dict__["co_number"],
+            task_id=co.__dict__["task_id"],
+            title=co.__dict__["title"],
+            description=co.__dict__["description"],
+            reason=co.__dict__["reason"],
+            status=co.__dict__["status"],
+            notes=co.__dict__["notes"],
+            created_by=co.__dict__["created_by"],
+            approved_by=co.__dict__["approved_by"],
+            approved_date=co.__dict__["approved_date"],
+            created_at=co.__dict__["created_at"],
+            updated_at=co.__dict__["updated_at"],
+            project_name=project_name,
+            component_name=component_name,
+            pm_name=pm_name
+        )
+        results.append(ext)
+    return results
 
 @router.put("/change-orders/{co_id}", response_model=schemas.ChangeOrder)
 def update_change_order(co_id: int, co: schemas.ChangeOrderUpdate, db: Session = Depends(get_db)):
