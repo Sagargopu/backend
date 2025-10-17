@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from . import models, schemas
 
 # ProjectType CRUD
@@ -43,8 +43,26 @@ def create_project(db: Session, project: schemas.ProjectCreate):
 def get_projects(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Project).offset(skip).limit(limit).all()
 
+def get_projects_with_details(db: Session, skip: int = 0, limit: int = 100):
+    """Get projects with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).offset(skip).limit(limit).all()
+
 def get_project(db: Session, project_id: int):
     return db.query(models.Project).filter(models.Project.id == project_id).first()
+
+def get_project_with_details(db: Session, project_id: int):
+    """Get a single project with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).filter(models.Project.id == project_id).first()
 
 def update_project(db: Session, project_id: int, project_update: schemas.ProjectUpdate):
     db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -69,15 +87,42 @@ def get_projects_by_client(db: Session, client_id: int, skip: int = 0, limit: in
         models.Project.client_id == client_id
     ).offset(skip).limit(limit).all()
 
+def get_projects_by_client_with_details(db: Session, client_id: int, skip: int = 0, limit: int = 100):
+    """Get projects by client with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).filter(models.Project.client_id == client_id).offset(skip).limit(limit).all()
+
 def get_projects_by_project_manager(db: Session, project_manager_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Project).filter(
         models.Project.project_manager_id == project_manager_id
     ).offset(skip).limit(limit).all()
 
+def get_projects_by_project_manager_with_details(db: Session, project_manager_id: int, skip: int = 0, limit: int = 100):
+    """Get projects by project manager with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).filter(models.Project.project_manager_id == project_manager_id).offset(skip).limit(limit).all()
+
 def get_projects_by_project_type(db: Session, project_type_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Project).filter(
         models.Project.project_type_id == project_type_id
     ).offset(skip).limit(limit).all()
+
+def get_projects_by_project_type_with_details(db: Session, project_type_id: int, skip: int = 0, limit: int = 100):
+    """Get projects by project type with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).filter(models.Project.project_type_id == project_type_id).offset(skip).limit(limit).all()
 
 # ProjectComponent CRUD
 def create_project_component(db: Session, component: schemas.ProjectComponentCreate):

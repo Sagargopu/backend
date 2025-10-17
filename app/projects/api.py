@@ -55,6 +55,12 @@ def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     projects = crud.get_projects(db, skip=skip, limit=limit)
     return projects
 
+@router.get("/projects/with-details/", response_model=List[schemas.ProjectWithDetails])
+def read_projects_with_details(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Get all projects with related object details (client names, etc.)"""
+    projects = crud.get_projects_with_details(db, skip=skip, limit=limit)
+    return [schemas.ProjectWithDetails.from_orm_with_names(project) for project in projects]
+
 @router.get("/projects/{project_id}", response_model=schemas.Project)
 def read_project(project_id: int, db: Session = Depends(get_db)):
     """Get project by ID"""
@@ -62,6 +68,14 @@ def read_project(project_id: int, db: Session = Depends(get_db)):
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+@router.get("/projects/{project_id}/with-details", response_model=schemas.ProjectWithDetails)
+def read_project_with_details(project_id: int, db: Session = Depends(get_db)):
+    """Get project by ID with related object details (client names, etc.)"""
+    project = crud.get_project_with_details(db, project_id=project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return schemas.ProjectWithDetails.from_orm_with_names(project)
 
 @router.put("/projects/{project_id}", response_model=schemas.Project)
 def update_project(project_id: int, project: schemas.ProjectUpdate, db: Session = Depends(get_db)):

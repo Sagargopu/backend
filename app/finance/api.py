@@ -87,6 +87,24 @@ def read_purchase_orders_by_task(task_id: int, db: Session = Depends(get_db)):
     pos = crud.get_purchase_orders_by_task(db, task_id=task_id)
     return pos
 
+@router.get("/purchase-orders/by-component/{component_id}", response_model=List[schemas.PurchaseOrder])
+def read_purchase_orders_by_component(component_id: int, db: Session = Depends(get_db)):
+    """Get purchase orders by component"""
+    pos = crud.get_purchase_orders_by_component(db, component_id=component_id)
+    return pos
+
+@router.get("/purchase-orders/by-creator/{creator_id}", response_model=List[schemas.PurchaseOrder])
+def read_purchase_orders_by_creator(creator_id: int, db: Session = Depends(get_db)):
+    """Get purchase orders by creator (created_by)"""
+    pos = crud.get_purchase_orders_by_creator(db, creator_id=creator_id)
+    return pos
+
+@router.get("/purchase-orders/by-approver/{approver_id}", response_model=List[schemas.PurchaseOrder])
+def read_purchase_orders_by_approver(approver_id: int, db: Session = Depends(get_db)):
+    """Get purchase orders by approver (approved_by)"""
+    pos = crud.get_purchase_orders_by_approver(db, approver_id=approver_id)
+    return pos
+
 @router.put("/purchase-orders/{po_id}", response_model=schemas.PurchaseOrder)
 def update_purchase_order(po_id: int, po: schemas.PurchaseOrderUpdate, db: Session = Depends(get_db)):
     """Update purchase order by ID"""
@@ -175,6 +193,24 @@ def read_change_orders_by_status(status: str, db: Session = Depends(get_db)):
 def read_change_orders_by_task(task_id: int, db: Session = Depends(get_db)):
     """Get change orders by task"""
     cos = crud.get_change_orders_by_task(db, task_id=task_id)
+    return cos
+
+@router.get("/change-orders/by-component/{component_id}", response_model=List[schemas.ChangeOrder])
+def read_change_orders_by_component(component_id: int, db: Session = Depends(get_db)):
+    """Get change orders by component"""
+    cos = crud.get_change_orders_by_component(db, component_id=component_id)
+    return cos
+
+@router.get("/change-orders/by-creator/{creator_id}", response_model=List[schemas.ChangeOrder])
+def read_change_orders_by_creator(creator_id: int, db: Session = Depends(get_db)):
+    """Get change orders by creator (created_by)"""
+    cos = crud.get_change_orders_by_creator(db, creator_id=creator_id)
+    return cos
+
+@router.get("/change-orders/by-approver/{approver_id}", response_model=List[schemas.ChangeOrder])
+def read_change_orders_by_approver(approver_id: int, db: Session = Depends(get_db)):
+    """Get change orders by approver (approved_by)"""
+    cos = crud.get_change_orders_by_approver(db, approver_id=approver_id)
     return cos
 
 @router.put("/change-orders/{co_id}", response_model=schemas.ChangeOrder)
@@ -272,3 +308,13 @@ def read_transactions_by_type(transaction_type: str, db: Session = Depends(get_d
     """Get transactions by type"""
     transactions = crud.get_transactions_by_type(db, transaction_type=transaction_type)
     return transactions
+
+@router.get("/change-orders/{co_id}/total-impact", response_model=float)
+def get_change_order_total_impact(co_id: int, db: Session = Depends(get_db)):
+    """Get the sum (total impact) of all change order line items for a given change order ID"""
+    # Optionally, check if the change order exists
+    co = crud.get_change_order(db, co_id=co_id)
+    if co is None:
+        raise HTTPException(status_code=404, detail="Change order not found")
+    total_impact = crud.calculate_co_total_impact(db, co_id)
+    return total_impact

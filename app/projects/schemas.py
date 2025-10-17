@@ -3,6 +3,31 @@ from datetime import datetime, date
 from typing import List, Optional
 from decimal import Decimal
 
+# Simple schemas for User references
+class UserReference(BaseModel):
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+    role: str
+    
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
+
+    class Config:
+        from_attributes = True
+
+# Simple schema for ProjectType reference
+class ProjectTypeReference(BaseModel):
+    id: int
+    category: str
+    type_name: str
+    description: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 # Schemas for ProjectType
 class ProjectTypeBase(BaseModel):
     category: str
@@ -96,14 +121,60 @@ class Project(ProjectBase):
     class Config:
         from_attributes = True
 
+# Enhanced Project schema with related object names
+class ProjectWithDetails(ProjectBase):
+    id: int
+    actual_budget: Optional[Decimal] = None
+    accountant_id: Optional[int] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    
+    # Related objects with names
+    client: Optional[UserReference] = None
+    project_manager: Optional[UserReference] = None
+    accountant: Optional[UserReference] = None
+    project_type: Optional[ProjectTypeReference] = None
+    
+    # Computed properties
+    client_name: Optional[str] = None
+    project_manager_name: Optional[str] = None
+    accountant_name: Optional[str] = None
+    project_type_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+        
+    @classmethod
+    def from_orm_with_names(cls, obj):
+        """Create ProjectWithDetails from ORM object with computed name fields"""
+        data = obj.__dict__.copy()
+        
+        # Add computed name fields
+        data['client_name'] = obj.client.full_name if obj.client else "No Client Assigned"
+        data['project_manager_name'] = obj.project_manager.full_name if obj.project_manager else "No PM Assigned"
+        data['accountant_name'] = obj.accountant.full_name if obj.accountant else "No Accountant Assigned"
+        data['project_type_name'] = obj.project_type.type_name if obj.project_type else "No Type Assigned"
+        
+        # Include related objects
+        if obj.client:
+            data['client'] = obj.client
+        if obj.project_manager:
+            data['project_manager'] = obj.project_manager
+        if obj.accountant:
+            data['accountant'] = obj.accountant
+        if obj.project_type:
+            data['project_type'] = obj.project_type
+            
+        return cls(**data)
+
 # Schemas for ProjectComponent
 class ProjectComponentBase(BaseModel):
     name: str
     description: Optional[str] = None
-    type: Optional[str] = None
     budget: Optional[Decimal] = None
     status: str = 'planned'
-    details: Optional[dict] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     parent_id: Optional[int] = None
 
 class ProjectComponentCreate(ProjectComponentBase):
@@ -112,10 +183,10 @@ class ProjectComponentCreate(ProjectComponentBase):
 class ProjectComponentUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    type: Optional[str] = None
     budget: Optional[Decimal] = None
     status: Optional[str] = None
-    details: Optional[dict] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     parent_id: Optional[int] = None
 
 class ProjectComponent(ProjectComponentBase):

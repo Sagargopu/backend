@@ -263,6 +263,90 @@ def get_all_users_for_admin(admin_id: int, skip: int = 0, limit: int = 100, db: 
     return crud.get_users(db, skip=skip, limit=limit)
 
 # ===============================
+# CLERK OPERATIONS
+# ===============================
+
+@router.get("/clerk/overview/", response_model=dict)
+def get_clerk_overview(clerk_id: int, db: Session = Depends(get_db)):
+    """Clerk gets company overview with user statistics"""
+    clerk = crud.get_user(db, user_id=clerk_id)
+    if clerk is None:
+        raise HTTPException(status_code=404, detail="Clerk not found")
+    if str(clerk.role) != 'clerk':
+        raise HTTPException(status_code=403, detail="Only clerks can access this overview")
+    
+    # Get comprehensive business data (same as business admin)
+    total_users = crud.get_users(db, skip=0, limit=1000)  # Get all users for count
+    
+    return {
+        "total_users": len(total_users),
+        "users_by_role": {
+            "clerks": len([u for u in total_users if str(u.role) == 'clerk']),
+            "project_managers": len([u for u in total_users if str(u.role) == 'project_manager']),
+            "accountants": len([u for u in total_users if str(u.role) == 'accountant']),
+            "clients": len([u for u in total_users if str(u.role) == 'client']),
+            "business_admins": len([u for u in total_users if str(u.role) == 'business_admin']),
+            "superadmin": len([u for u in total_users if str(u.role) == 'superadmin'])
+        },
+        "company_metrics": {
+            "active_users": len([u for u in total_users if getattr(u, 'is_active', False)]),
+            "pending_invitations": len(crud.get_pending_invitations(db, skip=0, limit=1000))
+        }
+    }
+
+@router.get("/clerk/users/", response_model=List[schemas.User])
+def get_all_users_for_clerk(clerk_id: int, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """Clerk gets all users with full details"""
+    clerk = crud.get_user(db, user_id=clerk_id)
+    if clerk is None:
+        raise HTTPException(status_code=404, detail="Clerk not found")
+    if str(clerk.role) != 'clerk':
+        raise HTTPException(status_code=403, detail="Only clerks can access all user data")
+    
+    return crud.get_users(db, skip=skip, limit=limit)
+
+# ===============================
+# GENERAL ADMIN OPERATIONS
+# ===============================
+
+@router.get("/admin/overview/", response_model=dict)
+def get_admin_overview(admin_id: int, db: Session = Depends(get_db)):
+    """Get company overview for authorized admin users (business admin, clerk, or superadmin)"""
+    admin = crud.get_user(db, user_id=admin_id)
+    if admin is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Allow business admins, clerks, and superadmins to access this endpoint
+    if str(admin.role) not in ['business_admin', 'clerk', 'superadmin']:
+        raise HTTPException(status_code=403, detail="Only admin users can access company overview")
+    
+    # Get comprehensive business data
+    total_users = crud.get_users(db, skip=0, limit=1000)  # Get all users for count
+    
+    return {
+        "total_users": len(total_users),
+        "users_by_role": {
+            "superadmin": len([u for u in total_users if str(u.role) == 'superadmin']),
+            "business_admins": len([u for u in total_users if str(u.role) == 'business_admin']),
+            "clerks": len([u for u in total_users if str(u.role) == 'clerk']),
+            "project_managers": len([u for u in total_users if str(u.role) == 'project_manager']),
+            "accountants": len([u for u in total_users if str(u.role) == 'accountant']),
+            "clients": len([u for u in total_users if str(u.role) == 'client'])
+        },
+        "company_metrics": {
+            "active_users": len([u for u in total_users if getattr(u, 'is_active', False)]),
+            "inactive_users": len([u for u in total_users if not getattr(u, 'is_active', True)]),
+            "pending_invitations": len(crud.get_pending_invitations(db, skip=0, limit=1000)),
+            "completed_accounts": len([u for u in total_users if getattr(u, 'account_setup_completed', False)])
+        },
+        "role_permissions": {
+            "requesting_user_role": str(admin.role),
+            "can_invite_users": str(admin.role) in ['superadmin', 'business_admin', 'clerk'],
+            "can_manage_users": str(admin.role) in ['superadmin', 'business_admin']
+        }
+    }
+
+# ===============================
 # STANDARD USER OPERATIONS
 # ===============================
 
