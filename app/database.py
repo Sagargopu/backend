@@ -18,7 +18,7 @@ def get_database_url():
 
 # TODO: Uncomment when ready to connect to GCP
 def get_cloud_sql_url():
-    """Configure Cloud SQL connection"""
+    """Configure Cloud SQL connection with Application Default Credentials"""
     
     # GCP Cloud SQL configuration
     INSTANCE_CONNECTION_NAME = os.getenv("INSTANCE_CONNECTION_NAME", "construction-management-475118:us-east4:databasecm")  # project:region:instance
@@ -29,7 +29,8 @@ def get_cloud_sql_url():
     if not INSTANCE_CONNECTION_NAME or not DB_PASS:
         raise ValueError("Missing required GCP Cloud SQL environment variables")
     
-    # Create connector instance
+    # Create connector instance with Application Default Credentials
+    # This will use the compute engine's service account automatically
     connector = Connector()
     def getconn():
         conn = connector.connect(
@@ -38,6 +39,7 @@ def get_cloud_sql_url():
             user=DB_USER,
             password=DB_PASS,
             db=DB_NAME,
+            enable_iam_auth=False  # Use password auth instead of IAM
         )
         return conn
     # Create SQLAlchemy engine with Cloud SQL connector
