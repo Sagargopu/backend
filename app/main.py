@@ -26,6 +26,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",  # Alternative localhost format
         "http://127.0.0.1:8080",
         "http://127.0.0.1:5173",
+        "http://34.133.34.37",   # Production frontend URL
         # Add your production frontend URL here when deploying
         # "https://your-frontend-domain.com",
     ],
