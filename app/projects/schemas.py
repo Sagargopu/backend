@@ -121,7 +121,7 @@ class Project(ProjectBase):
     class Config:
         from_attributes = True
 
-# Enhanced Project schema with related object names
+# Enhanced Project schema with related object names and financial summary
 class ProjectWithDetails(ProjectBase):
     id: int
     actual_budget: Optional[Decimal] = None
@@ -140,13 +140,17 @@ class ProjectWithDetails(ProjectBase):
     project_manager_name: Optional[str] = None
     accountant_name: Optional[str] = None
     project_type_name: Optional[str] = None
+    
+    # Financial summary
+    purchase_orders_sum: Optional[float] = 0.0
+    change_orders_sum: Optional[float] = 0.0
 
     class Config:
         from_attributes = True
         
     @classmethod
-    def from_orm_with_names(cls, obj):
-        """Create ProjectWithDetails from ORM object with computed name fields"""
+    def from_orm_with_names(cls, obj, financial_summary=None):
+        """Create ProjectWithDetails from ORM object with computed name fields and financial data"""
         data = obj.__dict__.copy()
         
         # Add computed name fields
@@ -164,6 +168,14 @@ class ProjectWithDetails(ProjectBase):
             data['accountant'] = obj.accountant
         if obj.project_type:
             data['project_type'] = obj.project_type
+            
+        # Add financial summary if provided
+        if financial_summary:
+            data['purchase_orders_sum'] = financial_summary.get('purchase_orders_sum', 0.0)
+            data['change_orders_sum'] = financial_summary.get('change_orders_sum', 0.0)
+        else:
+            data['purchase_orders_sum'] = 0.0
+            data['change_orders_sum'] = 0.0
             
         return cls(**data)
 

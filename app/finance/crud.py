@@ -1,4 +1,9 @@
 from sqlalchemy.orm import Session
+from typing import List, Optional
+from datetime import datetime
+
+from . import models, schemas
+
 # CRUD: Get all transactions by component ID
 def get_transactions_by_component(db: Session, component_id: int):
     from app.projects.models import Task
@@ -8,10 +13,6 @@ def get_transactions_by_component(db: Session, component_id: int):
     if not task_ids:
         return []
     return db.query(models.Transaction).filter(models.Transaction.task_id.in_(task_ids)).all()
-from typing import List, Optional
-from datetime import datetime
-
-from . import models, schemas
 
 # ===============================
 # VENDOR CRUD

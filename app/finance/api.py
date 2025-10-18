@@ -1,16 +1,3 @@
-# Endpoint: Get all transactions by component ID
-from fastapi import APIRouter, Depends
-router = APIRouter()
-from sqlalchemy.orm import Session
-from typing import List
-from . import crud, schemas
-from .dependencies import get_db
-
-@router.get("/transactions/by-component/{component_id}", response_model=List[schemas.Transaction])
-def read_transactions_by_component(component_id: int, db: Session = Depends(get_db)):
-    """Get transactions by component"""
-    transactions = crud.get_transactions_by_component(db, component_id=component_id)
-    return transactions
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -21,6 +8,16 @@ from app.users import models as user_models
 from app.database import get_db
 
 router = APIRouter()
+
+# ===============================
+# TRANSACTION ENDPOINTS
+# ===============================
+
+@router.get("/transactions/by-component/{component_id}", response_model=List[schemas.Transaction])
+def read_transactions_by_component(component_id: int, db: Session = Depends(get_db)):
+    """Get transactions by component"""
+    transactions = crud.get_transactions_by_component(db, component_id=component_id)
+    return transactions
 
 # ===============================
 # VENDOR ENDPOINTS

@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from datetime import date
 
@@ -61,28 +61,42 @@ def create_worker(db: Session, worker: schemas.WorkerCreate):
     return db_worker
 
 def get_worker(db: Session, worker_id: int):
-    """Get worker by ID"""
+    """Get worker by ID with profession"""
     return db.query(models.Worker).filter(models.Worker.id == worker_id).first()
+
+def get_worker_with_profession(db: Session, worker_id: int):
+    """Get worker by ID with profession details"""
+    return db.query(models.Worker).options(joinedload(models.Worker.profession)).filter(models.Worker.id == worker_id).first()
 
 def get_worker_by_worker_id(db: Session, worker_id: str):
     """Get worker by worker_id"""
     return db.query(models.Worker).filter(models.Worker.worker_id == worker_id).first()
 
-def get_workers(db: Session, skip: int = 0, limit: int = 100):
+def get_workers(db: Session, skip: int = 0, limit: Optional[int] = None):
     """Get list of all workers"""
-    return db.query(models.Worker).offset(skip).limit(limit).all()
+    query = db.query(models.Worker).offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
+
+def get_workers_with_profession(db: Session, skip: int = 0, limit: Optional[int] = None):
+    """Get list of all workers with profession details"""
+    query = db.query(models.Worker).options(joinedload(models.Worker.profession)).offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
 
 def get_workers_by_profession(db: Session, profession_id: int):
     """Get workers by profession"""
-    return db.query(models.Worker).filter(models.Worker.profession_id == profession_id).all()
+    return db.query(models.Worker).options(joinedload(models.Worker.profession)).filter(models.Worker.profession_id == profession_id).all()
 
 def get_workers_by_availability(db: Session, availability: str):
     """Get workers by availability status"""
-    return db.query(models.Worker).filter(models.Worker.availability == availability).all()
+    return db.query(models.Worker).options(joinedload(models.Worker.profession)).filter(models.Worker.availability == availability).all()
 
 def get_available_workers(db: Session):
     """Get all available workers"""
-    return db.query(models.Worker).filter(models.Worker.availability == "Available").all()
+    return db.query(models.Worker).options(joinedload(models.Worker.profession)).filter(models.Worker.availability == "Available").all()
 
 def update_worker(db: Session, worker_id: int, worker_update: schemas.WorkerUpdate):
     """Update worker"""
@@ -127,6 +141,39 @@ def get_worker_project_histories(db: Session, worker_id: int):
 def get_project_worker_histories(db: Session, project_id: int):
     """Get all worker histories for a project"""
     return db.query(models.WorkerProjectHistory).filter(models.WorkerProjectHistory.project_id == project_id).all()
+
+def get_project_worker_histories_with_names(db: Session, project_id: int):
+    """Get all worker histories for a project with worker names"""
+    histories = db.query(
+        models.WorkerProjectHistory,
+        models.Worker.first_name,
+        models.Worker.last_name
+    ).join(
+        models.Worker, 
+        models.WorkerProjectHistory.worker_id == models.Worker.id
+    ).filter(
+        models.WorkerProjectHistory.project_id == project_id
+    ).all()
+    
+    result = []
+    for history, first_name, last_name in histories:
+        history_dict = {
+            "id": history.id,
+            "worker_id": history.worker_id,
+            "project_id": history.project_id,
+            "start_date": history.start_date,
+            "end_date": history.end_date,
+            "role": history.role,
+            "status": history.status,
+            "worker_first_name": first_name,
+            "worker_last_name": last_name,
+            "worker_full_name": f"{first_name} {last_name}",
+            "created_at": history.created_at,
+            "updated_at": history.updated_at
+        }
+        result.append(history_dict)
+    
+    return result
 
 def get_active_worker_assignments(db: Session):
     """Get all active worker project assignments"""

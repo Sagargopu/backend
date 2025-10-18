@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from . import models, schemas
 
 # ProjectType CRUD
@@ -196,3 +197,61 @@ def delete_task(db: Session, task_id: int):
         db.delete(db_task)
         db.commit()
     return db_task
+
+# Finance summary functions
+def get_project_purchase_orders_sum(db: Session, project_id: int):
+    """Calculate the total sum of all approved purchase order items for a project"""
+    from app.finance.models import PurchaseOrder, PurchaseOrderItem
+    
+    # Include all approved statuses: Approved, Delivered, Paid
+    approved_statuses = ['Approved', 'Delivered', 'Paid']
+    
+    total = db.query(func.sum(PurchaseOrderItem.price)).join(
+        PurchaseOrder, PurchaseOrderItem.purchase_order_id == PurchaseOrder.id
+    ).join(
+        models.Task, PurchaseOrder.task_id == models.Task.id
+    ).filter(
+        models.Task.project_id == project_id,
+        PurchaseOrder.status.in_(approved_statuses)  # Include all approved statuses
+    ).scalar()
+    
+    return float(total) if total else 0.0
+
+def get_project_change_orders_sum(db: Session, project_id: int):
+    """Calculate the total sum of all approved change order items for a project (considering impact_type)"""
+    from app.finance.models import ChangeOrder, ChangeOrderItem
+    
+    # Include all approved statuses: Approved, Implemented
+    approved_statuses = ['Approved', 'Implemented']
+    
+    # Get all change order items for approved change orders
+    change_items = db.query(
+        ChangeOrderItem.amount, 
+        ChangeOrderItem.impact_type
+    ).join(
+        ChangeOrder, ChangeOrderItem.change_order_id == ChangeOrder.id
+    ).join(
+        models.Task, ChangeOrder.task_id == models.Task.id
+    ).filter(
+        models.Task.project_id == project_id,
+        ChangeOrder.status.in_(approved_statuses)  # Include all approved statuses
+    ).all()
+    
+    total = 0.0
+    for amount, impact_type in change_items:
+        if impact_type == '+':
+            total += float(amount)
+        elif impact_type == '-':
+            total -= float(amount)
+    
+    return total
+
+def get_project_financial_summary(db: Session, project_id: int):
+    """Get comprehensive financial summary for a project"""
+    po_sum = get_project_purchase_orders_sum(db, project_id)
+    co_sum = get_project_change_orders_sum(db, project_id)
+    
+    return {
+        'purchase_orders_sum': po_sum,
+        'change_orders_sum': co_sum
+    }
