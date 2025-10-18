@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from . import models, schemas
 
 # ProjectType CRUD
@@ -43,8 +44,26 @@ def create_project(db: Session, project: schemas.ProjectCreate):
 def get_projects(db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Project).offset(skip).limit(limit).all()
 
+def get_projects_with_details(db: Session, skip: int = 0, limit: int = 100):
+    """Get projects with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).offset(skip).limit(limit).all()
+
 def get_project(db: Session, project_id: int):
     return db.query(models.Project).filter(models.Project.id == project_id).first()
+
+def get_project_with_details(db: Session, project_id: int):
+    """Get a single project with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).filter(models.Project.id == project_id).first()
 
 def update_project(db: Session, project_id: int, project_update: schemas.ProjectUpdate):
     db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
@@ -69,15 +88,42 @@ def get_projects_by_client(db: Session, client_id: int, skip: int = 0, limit: in
         models.Project.client_id == client_id
     ).offset(skip).limit(limit).all()
 
+def get_projects_by_client_with_details(db: Session, client_id: int, skip: int = 0, limit: int = 100):
+    """Get projects by client with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).filter(models.Project.client_id == client_id).offset(skip).limit(limit).all()
+
 def get_projects_by_project_manager(db: Session, project_manager_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Project).filter(
         models.Project.project_manager_id == project_manager_id
     ).offset(skip).limit(limit).all()
 
+def get_projects_by_project_manager_with_details(db: Session, project_manager_id: int, skip: int = 0, limit: int = 100):
+    """Get projects by project manager with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).filter(models.Project.project_manager_id == project_manager_id).offset(skip).limit(limit).all()
+
 def get_projects_by_project_type(db: Session, project_type_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Project).filter(
         models.Project.project_type_id == project_type_id
     ).offset(skip).limit(limit).all()
+
+def get_projects_by_project_type_with_details(db: Session, project_type_id: int, skip: int = 0, limit: int = 100):
+    """Get projects by project type with all related objects loaded"""
+    return db.query(models.Project).options(
+        joinedload(models.Project.client),
+        joinedload(models.Project.project_manager),
+        joinedload(models.Project.accountant),
+        joinedload(models.Project.project_type)
+    ).filter(models.Project.project_type_id == project_type_id).offset(skip).limit(limit).all()
 
 # ProjectComponent CRUD
 def create_project_component(db: Session, component: schemas.ProjectComponentCreate):
@@ -151,3 +197,61 @@ def delete_task(db: Session, task_id: int):
         db.delete(db_task)
         db.commit()
     return db_task
+
+# Finance summary functions
+def get_project_purchase_orders_sum(db: Session, project_id: int):
+    """Calculate the total sum of all approved purchase order items for a project"""
+    from app.finance.models import PurchaseOrder, PurchaseOrderItem
+    
+    # Include all approved statuses: Approved, Delivered, Paid
+    approved_statuses = ['Approved', 'Delivered', 'Paid']
+    
+    total = db.query(func.sum(PurchaseOrderItem.price)).join(
+        PurchaseOrder, PurchaseOrderItem.purchase_order_id == PurchaseOrder.id
+    ).join(
+        models.Task, PurchaseOrder.task_id == models.Task.id
+    ).filter(
+        models.Task.project_id == project_id,
+        PurchaseOrder.status.in_(approved_statuses)  # Include all approved statuses
+    ).scalar()
+    
+    return float(total) if total else 0.0
+
+def get_project_change_orders_sum(db: Session, project_id: int):
+    """Calculate the total sum of all approved change order items for a project (considering impact_type)"""
+    from app.finance.models import ChangeOrder, ChangeOrderItem
+    
+    # Include all approved statuses: Approved, Implemented
+    approved_statuses = ['Approved', 'Implemented']
+    
+    # Get all change order items for approved change orders
+    change_items = db.query(
+        ChangeOrderItem.amount, 
+        ChangeOrderItem.impact_type
+    ).join(
+        ChangeOrder, ChangeOrderItem.change_order_id == ChangeOrder.id
+    ).join(
+        models.Task, ChangeOrder.task_id == models.Task.id
+    ).filter(
+        models.Task.project_id == project_id,
+        ChangeOrder.status.in_(approved_statuses)  # Include all approved statuses
+    ).all()
+    
+    total = 0.0
+    for amount, impact_type in change_items:
+        if impact_type == '+':
+            total += float(amount)
+        elif impact_type == '-':
+            total -= float(amount)
+    
+    return total
+
+def get_project_financial_summary(db: Session, project_id: int):
+    """Get comprehensive financial summary for a project"""
+    po_sum = get_project_purchase_orders_sum(db, project_id)
+    co_sum = get_project_change_orders_sum(db, project_id)
+    
+    return {
+        'purchase_orders_sum': po_sum,
+        'change_orders_sum': co_sum
+    }

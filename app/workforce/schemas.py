@@ -96,6 +96,17 @@ class WorkerProjectHistory(WorkerProjectHistoryBase):
     class Config:
         from_attributes = True
 
+class WorkerProjectHistoryWithName(WorkerProjectHistoryBase):
+    id: int
+    worker_first_name: str
+    worker_last_name: str
+    worker_full_name: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
 class WorkerWithHistory(Worker):
     project_history: List[WorkerProjectHistory] = []
 

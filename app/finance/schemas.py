@@ -1,3 +1,26 @@
+# Basic ChangeOrder schema for endpoints that do not require extended fields
+
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
+
+class ChangeOrder(BaseModel):
+    id: int
+    co_number: str
+    task_id: int
+    title: str
+    description: str
+    reason: Optional[str] = None
+    status: str
+    notes: Optional[str] = None
+    created_by: int
+    approved_by: Optional[int] = None
+    approved_date: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
 from pydantic import BaseModel
 from datetime import datetime, date
 from typing import Optional, List
@@ -41,7 +64,6 @@ class Vendor(VendorBase):
 # ===============================
 
 class PurchaseOrderBase(BaseModel):
-    po_number: str
     task_id: int
     vendor_id: int
     description: str
@@ -65,6 +87,7 @@ class PurchaseOrderUpdate(BaseModel):
 
 class PurchaseOrder(PurchaseOrderBase):
     id: int
+    po_number: str
     created_by: int
     approved_by: Optional[int] = None
     approved_date: Optional[datetime] = None
@@ -82,10 +105,7 @@ class PurchaseOrderItemBase(BaseModel):
     item_name: str
     description: Optional[str] = None
     category: Optional[str] = None  # 'Material', 'Labor', 'Equipment', 'Service'
-    quantity: Decimal
-    unit: str
-    unit_price: Decimal
-    specifications: Optional[str] = None
+    price: Decimal
 
 class PurchaseOrderItemCreate(PurchaseOrderItemBase):
     purchase_order_id: int
@@ -94,10 +114,7 @@ class PurchaseOrderItemUpdate(BaseModel):
     item_name: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
-    quantity: Optional[Decimal] = None
-    unit: Optional[str] = None
-    unit_price: Optional[Decimal] = None
-    specifications: Optional[str] = None
+    price: Optional[Decimal] = None
 
 class PurchaseOrderItem(PurchaseOrderItemBase):
     id: int
@@ -113,12 +130,10 @@ class PurchaseOrderItem(PurchaseOrderItemBase):
 # ===============================
 
 class ChangeOrderBase(BaseModel):
-    co_number: str
     task_id: int
     title: str
     description: str
     reason: Optional[str] = None  # 'Client Request', 'Design Change', 'Site Condition', 'Code Requirement'
-    schedule_impact_days: int = 0
     status: str = 'Draft'
     notes: Optional[str] = None
 
@@ -131,22 +146,34 @@ class ChangeOrderUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     reason: Optional[str] = None
-    schedule_impact_days: Optional[int] = None
     status: Optional[str] = None
     approved_by: Optional[int] = None
     approved_date: Optional[datetime] = None
     notes: Optional[str] = None
 
-class ChangeOrder(ChangeOrderBase):
+
+# Extended ChangeOrder response with project/component/PM info
+class ChangeOrderExtended(BaseModel):
     id: int
+    co_number: str
+    task_id: int
+    title: str
+    description: str
+    reason: Optional[str] = None
+    status: str
+    notes: Optional[str] = None
     created_by: int
     approved_by: Optional[int] = None
     approved_date: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # Extra fields
+    project_name: Optional[str] = None
+    component_name: Optional[str] = None
+    pm_name: Optional[str] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # ===============================
 # CHANGE ORDER ITEM SCHEMAS
