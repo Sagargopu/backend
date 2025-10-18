@@ -36,7 +36,19 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the BuildBuzz API"}
+    """Root endpoint with API information"""
+    return {
+        "message": "BuildBuzz Backend API",
+        "version": "1.0.0", 
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+# Health check endpoint
+@app.get("/health", tags=["health"])
+def health_check():
+    """Health check endpoint for load balancers and monitoring"""
+    return {"status": "healthy", "message": "BuildBuzz Backend is running"}
 
 from .users.api import router as users_router
 from .projects.api import router as projects_router
